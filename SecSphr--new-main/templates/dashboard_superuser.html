@@ -191,18 +191,16 @@
             <div class="card-body">
                 <div class="row">
                     {% for product_data in products_data %}
-                        {% if product_data.product and product_data.dimension_scores %}
-                        {% set maturity_score = ((product_data.dimension_scores.values()|map(attribute='average')|sum) / (product_data.dimension_scores|length))|round|int if product_data.dimension_scores else 0 %}
-                        {% if maturity_score > 0 %}
+                        {% if product_data.product and product_data.maturity_score and product_data.maturity_score > 0 %}
                         <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
-                            <div class="admin-maturity-card level-{{ maturity_score }}">
+                            <div class="admin-maturity-card level-{{ product_data.maturity_score }}">
                                 <div class="maturity-header">
                                     <h6 class="product-name">{{ product_data.product.name }}</h6>
                                     <span class="owner-info">{{ product_data.owner.organization if product_data.owner.organization else product_data.owner.username }}</span>
                                 </div>
                                 <div class="maturity-body">
-                                    <div class="maturity-circle level-{{ maturity_score }}">
-                                        <span class="level-num">{{ maturity_score }}</span>
+                                    <div class="maturity-circle level-{{ product_data.maturity_score }}">
+                                        <span class="level-num">{{ product_data.maturity_score }}</span>
                                     </div>
                                     <div class="maturity-stats">
                                         <small class="text-muted">
@@ -219,12 +217,11 @@
                             </div>
                         </div>
                         {% endif %}
-                        {% endif %}
                     {% endfor %}
                 </div>
                 
                 <!-- Overall Statistics -->
-                {% set completed_products = products_data|selectattr('dimension_scores')|list %}
+                {% set completed_products = products_data|selectattr('maturity_score')|list %}
                 {% if completed_products|length > 0 %}
                 <div class="overall-admin-stats mt-4 pt-3 border-top">
                     <div class="row text-center">
@@ -236,14 +233,13 @@
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                {% set avg_maturity = (completed_products|map(attribute='dimension_scores')|map('values')|map('map', attribute='average')|map('sum')|sum / (completed_products|map(attribute='dimension_scores')|map('length')|sum))|round(1) if completed_products else 0 %}
-                                <h4 class="text-success">{{ avg_maturity }}/5</h4>
+                                <h4 class="text-success">{{ admin_stats.avg_maturity }}/5</h4>
                                 <small class="text-muted">Average Maturity</small>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <h4 class="text-info">{{ products_data|map(attribute='total_responses')|sum }}</h4>
+                                <h4 class="text-info">{{ admin_stats.total_responses }}</h4>
                                 <small class="text-muted">Total Responses</small>
                             </div>
                         </div>
