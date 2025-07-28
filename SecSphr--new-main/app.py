@@ -1184,8 +1184,17 @@ def dashboard():
 
         # Get unread comments count for this client
         unread_comments = LeadComment.query.filter_by(client_id=user_id, is_read=False).count()
+        
+        # Calculate client statistics
+        assessed_products = [p for p in products_with_status if p['maturity_score'] > 0 and p['status'] == 'completed']
+        client_stats = {
+            'avg_maturity': round(sum(p['maturity_score'] for p in assessed_products) / len(assessed_products), 1) if assessed_products else 0,
+            'max_maturity': max(p['maturity_score'] for p in assessed_products) if assessed_products else 0,
+            'min_maturity': min(p['maturity_score'] for p in assessed_products) if assessed_products else 0,
+            'assessed_count': len(assessed_products)
+        }
 
-        return render_template('dashboard_client.html', products=products_with_status, unread_comments=unread_comments)
+        return render_template('dashboard_client.html', products=products_with_status, unread_comments=unread_comments, client_stats=client_stats)
     elif role == 'lead':
         # Get all responses with user and product information - only for completed assessments
         resps = db.session.query(QuestionnaireResponse, User, Product).join(
@@ -1237,16 +1246,41 @@ def dashboard():
 
         # Get detailed product data with responses and scoring
         products_data = []
+        total_responses_count = 0
+        maturity_scores = []
+        
         for product in products:
             responses = QuestionnaireResponse.query.filter_by(product_id=product.id).all()
-
-            # Calculate scores by dimension
+            
+            if not responses:
+                continue  # Skip products with no responses
+            
+            # Get product owner info
+            owner = User.query.get(product.owner_id)
+            
+            # Calculate proper dimension scores and maturity score for each user
+            users_with_responses = set([r.user_id for r in responses])
+            product_maturity_scores = []
+            
+            for user_id in users_with_responses:
+                # Check if this user's assessment is complete
+                if is_assessment_complete(product.id, user_id):
+                    dimension_scores = calculate_dimension_scores(product.id, user_id)
+                    maturity_score = calculate_maturity_score(dimension_scores)
+                    if maturity_score > 0:
+                        product_maturity_scores.append(maturity_score)
+            
+            # Use the average maturity score for this product
+            avg_maturity_score = sum(product_maturity_scores) / len(product_maturity_scores) if product_maturity_scores else 0
+            avg_maturity_score = round(avg_maturity_score)
+            
+            # Calculate simple dimension scores for display
             dimension_scores = {}
             for resp in responses:
                 if resp.section not in dimension_scores:
                     dimension_scores[resp.section] = {'total': 0, 'count': 0}
 
-                # Simple scoring based on answer (this can be made more sophisticated)
+                # Simple scoring based on answer
                 score = 0
                 if 'yes' in resp.answer.lower() or 'high' in resp.answer.lower():
                     score = 100
@@ -1255,7 +1289,7 @@ def dashboard():
                 elif 'no' in resp.answer.lower() or 'low' in resp.answer.lower():
                     score = 0
                 else:
-                    score = 25  # Default for other answers
+                    score = 25
 
                 dimension_scores[resp.section]['total'] += score
                 dimension_scores[resp.section]['count'] += 1
@@ -1267,16 +1301,26 @@ def dashboard():
                 else:
                     dimension_scores[dimension]['average'] = 0
 
-            # Get product owner info
-            owner = User.query.get(product.owner_id)
-
             products_data.append({
                 'product': product,
                 'owner': owner,
                 'responses': responses,
                 'dimension_scores': dimension_scores,
+                'maturity_score': avg_maturity_score,
                 'total_responses': len(responses)
             })
+            
+            total_responses_count += len(responses)
+            if avg_maturity_score > 0:
+                maturity_scores.append(avg_maturity_score)
+        
+        # Calculate admin statistics
+        admin_stats = {
+            'total_responses': total_responses_count,
+            'avg_maturity': round(sum(maturity_scores) / len(maturity_scores), 1) if maturity_scores else 0,
+            'assessed_products': len(maturity_scores),
+            'total_products': len(products_data)
+        }
 
         # Get all responses and comments for admin view
         all_responses = db.session.query(QuestionnaireResponse, User, Product).join(
@@ -1286,7 +1330,7 @@ def dashboard():
         ).order_by(QuestionnaireResponse.created_at.desc()).limit(100).all()
         all_comments = LeadComment.query.options(db.joinedload(LeadComment.product), db.joinedload(LeadComment.lead), db.joinedload(LeadComment.client)).order_by(LeadComment.created_at.desc()).limit(50).all()
 
-        return render_template('dashboard_superuser.html', products_data=products_data, all_responses=all_responses, all_comments=all_comments)
+        return render_template('dashboard_superuser.html', products_data=products_data, all_responses=all_responses, all_comments=all_comments, admin_stats=admin_stats)
     return redirect(url_for('index'))
 
 def is_assessment_complete(product_id, user_id):
@@ -1475,6 +1519,13 @@ def product_results(product_id):
     maturity_score = calculate_maturity_score(dimension_scores)
     section_dimensions = get_section_wise_dimensions(product_id, session['user_id'])
     
+    # Calculate average dimension score
+    if dimension_scores:
+        total_score = sum(score_data.get('average_score', 0) for score_data in dimension_scores.values())
+        average_dimension_score = total_score / len(dimension_scores)
+    else:
+        average_dimension_score = 0
+    
     # Get product info
     product = Product.query.get_or_404(product_id)
     
@@ -1504,7 +1555,8 @@ def product_results(product_id):
                          section_dimensions=section_dimensions,
                          product=product,
                          current_product=product,
-                         user_products=user_products)
+                         user_products=user_products,
+                         average_dimension_score=average_dimension_score)
 
 @app.route('/client/comments')
 @login_required('client')
@@ -2103,7 +2155,16 @@ def admin_analytics():
                     'section_scores': {k: sum(v)/len(v) for k, v in section_scores.items()}
                 })
 
-    return render_template('admin_analytics.html', analytics_data=analytics_data)
+    # Calculate analytics statistics
+    unique_clients = len(set(data['owner'].id for data in analytics_data if data['owner']))
+    analytics_stats = {
+        'unique_clients': unique_clients,
+        'total_products': len(analytics_data),
+        'total_responses': sum(data['total_responses'] for data in analytics_data),
+        'avg_score': round(sum(data['avg_score'] for data in analytics_data) / len(analytics_data), 1) if analytics_data else 0
+    }
+
+    return render_template('admin_analytics.html', analytics_data=analytics_data, analytics_stats=analytics_stats)
 
 @app.route('/admin/products/delete/<int:product_id>')
 @login_required('superuser')

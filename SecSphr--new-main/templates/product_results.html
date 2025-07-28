@@ -95,7 +95,7 @@
                 <i class="bi bi-graph-up"></i>
             </div>
             <div class="metric-content">
-                <h3 class="metric-value">{{ "%.1f"|format((dimension_scores.values()|map(attribute='average_score')|sum / dimension_scores|length) if dimension_scores else 0) }}</h3>
+                <h3 class="metric-value">{{ "%.1f"|format(average_dimension_score) }}</h3>
                 <p class="metric-label">Average Score</p>
             </div>
         </div>
