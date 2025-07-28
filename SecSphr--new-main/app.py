@@ -1015,6 +1015,7 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+        confirm_password = request.form['confirm_password']
         organization = request.form.get('organization', '')
 
         # Validate invitation token
@@ -1028,8 +1029,13 @@ def register():
             return redirect(url_for('register', token=token))
 
         # Server-side validation
-        if not username or not email or not password:
+        if not username or not email or not password or not confirm_password:
             flash('Please fill in all fields.')
+            return redirect(url_for('register', token=token))
+
+        # Check password confirmation
+        if password != confirm_password:
+            flash('Password and confirm password do not match.')
             return redirect(url_for('register', token=token))
 
         if User.query.filter_by(username=username).first():
@@ -1472,6 +1478,9 @@ def product_results(product_id):
     # Get product info
     product = Product.query.get_or_404(product_id)
     
+    # Get all user products for selection dropdown
+    user_products = get_user_products(session['user_id'])
+    
     # Convert responses to serializable format
     responses_json = []
     for resp in resps:
@@ -1493,7 +1502,9 @@ def product_results(product_id):
                          dimension_scores=dimension_scores,
                          maturity_score=maturity_score,
                          section_dimensions=section_dimensions,
-                         product=product)
+                         product=product,
+                         current_product=product,
+                         user_products=user_products)
 
 @app.route('/client/comments')
 @login_required('client')
