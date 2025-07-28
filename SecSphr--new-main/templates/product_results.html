@@ -10,6 +10,50 @@
     <p class="lead mb-0">Comprehensive analysis of your security posture by dimension</p>
 </div>
 
+<!-- Product Selection -->
+{% if user_products and user_products|length > 1 %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-box-seam me-2"></i>Select Product to View
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for product in user_products %}
+                    <div class="col-md-4 col-lg-3 mb-3">
+                        <div class="product-selection-card {% if product.id == current_product.id %}active{% endif %}">
+                            <a href="{{ url_for('product_results', product_id=product.id) }}" class="text-decoration-none">
+                                <div class="product-card-body">
+                                    <h6 class="product-name">{{ product.name }}</h6>
+                                    <div class="product-stats">
+                                        {% if product.maturity_score > 0 and product.status == 'completed' %}
+                                            <span class="maturity-badge level-{{ product.maturity_score }}">
+                                                Level {{ product.maturity_score }}
+                                            </span>
+                                        {% else %}
+                                            <span class="progress-badge">
+                                                {{ product.completed_sections }}/{{ product.total_sections }} sections
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="product-status">
+                                        <small class="text-muted">{{ product.status_display }}</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Key Metrics Dashboard -->
 <div class="row mb-4">
     <div class="col-md-3 col-sm-6 mb-3">
@@ -128,18 +172,18 @@
                             <div class="section-card">
                                 <div class="section-header">
                                     <h6 class="section-title">{{ section }}</h6>
-                                    <span class="section-percentage">{{ data.percentage }}%</span>
+                                    <span class="section-score">{{ data.average_score }}/5</span>
                                 </div>
-                                <div class="section-progress mb-2">
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" 
-                                             style="width: {{ data.percentage }}%"></div>
+                                <div class="section-graph mb-2">
+                                    <div class="score-bar-container">
+                                        <div class="score-bar level-{{ data.average_score|round|int }}" 
+                                             style="width: {{ (data.average_score / 5 * 100)|round }}%"></div>
                                     </div>
                                 </div>
                                 <div class="section-details">
                                     <small class="text-muted">
                                         {{ data.question_count }} questions • 
-                                        {{ data.total_score }}/{{ data.max_possible_score }} points
+                                        Level {{ data.average_score|round|int }}
                                     </small>
                                 </div>
                             </div>
@@ -244,6 +288,101 @@
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Risk Assessment Heatmap -->
+{% if maturity_score > 0 %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>Risk Assessment Heatmap
+                </h5>
+                <small class="text-muted">Visual representation of risk likelihood and impact across security dimensions</small>
+            </div>
+            <div class="card-body">
+                <div class="heatmap-description mb-4">
+                    <p class="text-muted">
+                        A risk map offers a visualized, comprehensive view of the likelihood and impact of an organization's risks.
+                        Risks that fall into the green areas of the map require no action or monitoring. Yellow and orange risks
+                        require action. Risks that fall into red portions of the map need urgent action.
+                    </p>
+                </div>
+                
+                <div class="risk-heatmap-container">
+                    <div class="heatmap-grid">
+                        <!-- Header Row -->
+                        <div class="heatmap-header">
+                            <div class="impact-label">
+                                <span class="vertical-text">IMPACT</span>
+                            </div>
+                            <div class="grid-headers">
+                                <div class="grid-header"></div>
+                                <div class="grid-header">Improbable<br><small>(1)</small></div>
+                                <div class="grid-header">Remote<br><small>(2)</small></div>
+                                <div class="grid-header">Occasional<br><small>(3)</small></div>
+                                <div class="grid-header">Probable<br><small>(4)</small></div>
+                                <div class="grid-header">Frequent<br><small>(5)</small></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Risk Grid Rows -->
+                        <div class="heatmap-row">
+                            <div class="row-label">Catastrophic<br><small>(5)</small></div>
+                            <div class="risk-cell risk-5">5</div>
+                            <div class="risk-cell risk-10">10</div>
+                            <div class="risk-cell risk-15">15</div>
+                            <div class="risk-cell risk-20">20</div>
+                            <div class="risk-cell risk-25">25</div>
+                        </div>
+                        
+                        <div class="heatmap-row">
+                            <div class="row-label">Significant<br><small>(4)</small></div>
+                            <div class="risk-cell risk-4">4</div>
+                            <div class="risk-cell risk-8">8</div>
+                            <div class="risk-cell risk-12">12</div>
+                            <div class="risk-cell risk-16">16</div>
+                            <div class="risk-cell risk-20">20</div>
+                        </div>
+                        
+                        <div class="heatmap-row">
+                            <div class="row-label">Moderate<br><small>(3)</small></div>
+                            <div class="risk-cell risk-3">3</div>
+                            <div class="risk-cell risk-6">6</div>
+                            <div class="risk-cell risk-9">9</div>
+                            <div class="risk-cell risk-12">12</div>
+                            <div class="risk-cell risk-15">15</div>
+                        </div>
+                        
+                        <div class="heatmap-row">
+                            <div class="row-label">Low<br><small>(2)</small></div>
+                            <div class="risk-cell risk-2">2</div>
+                            <div class="risk-cell risk-4">4</div>
+                            <div class="risk-cell risk-6">6</div>
+                            <div class="risk-cell risk-8">8</div>
+                            <div class="risk-cell risk-10">10</div>
+                        </div>
+                        
+                        <div class="heatmap-row">
+                            <div class="row-label">Negligible<br><small>(1)</small></div>
+                            <div class="risk-cell risk-1">1</div>
+                            <div class="risk-cell risk-2">2</div>
+                            <div class="risk-cell risk-3">3</div>
+                            <div class="risk-cell risk-4">4</div>
+                            <div class="risk-cell risk-5">5</div>
+                        </div>
+                        
+                        <!-- Likelihood Label -->
+                        <div class="likelihood-label">
+                            <span>LIKELIHOOD</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

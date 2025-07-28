@@ -19,16 +19,23 @@
 
 /* Green color for selected options */
 .answer-option input[type="radio"]:checked + label {
-    background-color: rgba(40, 167, 69, 0.1);
-    border-left: 4px solid #28a745;
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-left: 4px solid #28a745 !important;
     padding-left: 12px;
     font-weight: 600;
-    color: #155724;
+    color: #155724 !important;
+    border-radius: 5px;
 }
 
 .question-card.option-selected {
     border-left: 6px solid #28a745 !important;
     background-color: rgba(40, 167, 69, 0.02) !important;
+}
+
+/* Make entire question card green when answered */
+.question-card.answered {
+    border-left: 6px solid #28a745 !important;
+    background-color: rgba(40, 167, 69, 0.05) !important;
 }
 </style>
 {% endblock %}
@@ -472,7 +479,15 @@ document.querySelectorAll('input[type="radio"]').forEach(function(radio) {
         const questionCard = this.closest('.question-card');
         questionCard.classList.add('question-answered');
         questionCard.classList.add('option-selected');
+        questionCard.classList.add('answered');
         questionCard.classList.remove('border-danger');
+        
+        // Update question number to show as completed
+        const questionNumber = questionCard.querySelector('.question-number');
+        if (questionNumber) {
+            questionNumber.style.backgroundColor = '#28a745';
+            questionNumber.style.color = 'white';
+        }
     });
 });
 
@@ -481,6 +496,14 @@ document.querySelectorAll('input[type="radio"]:checked').forEach(function(radio)
     const questionCard = radio.closest('.question-card');
     questionCard.classList.add('question-answered');
     questionCard.classList.add('option-selected');
+    questionCard.classList.add('answered');
+    
+    // Update question number to show as completed
+    const questionNumber = questionCard.querySelector('.question-number');
+    if (questionNumber) {
+        questionNumber.style.backgroundColor = '#28a745';
+        questionNumber.style.color = 'white';
+    }
 });
 
 // File upload functionality

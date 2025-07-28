@@ -4112,3 +4112,353 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 6px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
+
+/* Section Score Graph Styles */
+.section-score {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.score-bar-container {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.score-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.score-bar.level-1 {
+    background: linear-gradient(90deg, #dc3545, #e74c3c);
+}
+
+.score-bar.level-2 {
+    background: linear-gradient(90deg, #fd7e14, #f39c12);
+}
+
+.score-bar.level-3 {
+    background: linear-gradient(90deg, #ffc107, #f1c40f);
+}
+
+.score-bar.level-4 {
+    background: linear-gradient(90deg, #20c997, #1abc9c);
+}
+
+.score-bar.level-5 {
+    background: linear-gradient(90deg, #28a745, #27ae60);
+}
+
+/* Dimension Score Graph Styles */
+.dimension-score-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.dimension-score-card:hover {
+    transform: translateY(-5px);
+}
+
+.dimension-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.dimension-score {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.dimension-details {
+    opacity: 0.9;
+}
+
+/* Product Selection Cards */
+.product-selection-card {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    background: white;
+    overflow: hidden;
+}
+
+.product-selection-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.1);
+    transform: translateY(-2px);
+}
+
+.product-selection-card.active {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.product-selection-card.active .product-name {
+    color: white;
+}
+
+.product-selection-card.active .text-muted {
+    color: rgba(255,255,255,0.8) !important;
+}
+
+.product-card-body {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.product-name {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.product-stats {
+    margin-bottom: 0.5rem;
+}
+
+.maturity-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: white;
+}
+
+.maturity-badge.level-1 { background-color: #dc3545; }
+.maturity-badge.level-2 { background-color: #fd7e14; }
+.maturity-badge.level-3 { background-color: #ffc107; color: #333; }
+.maturity-badge.level-4 { background-color: #20c997; }
+.maturity-badge.level-5 { background-color: #28a745; }
+
+.progress-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Risk Assessment Heatmap */
+.risk-heatmap-container {
+    overflow-x: auto;
+    padding: 1rem 0;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    grid-template-rows: auto repeat(5, 60px) auto;
+    gap: 2px;
+    min-width: 600px;
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+.heatmap-header {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    gap: 2px;
+    margin-bottom: 10px;
+}
+
+.impact-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #666;
+}
+
+.vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.grid-headers {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+}
+
+.grid-header {
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #666;
+    padding: 0.5rem;
+}
+
+.heatmap-row {
+    display: contents;
+}
+
+.row-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #666;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 0.5rem;
+}
+
+.risk-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.risk-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Risk color coding based on score */
+.risk-cell.risk-1, .risk-cell.risk-2 {
+    background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.risk-cell.risk-3, .risk-cell.risk-4, .risk-cell.risk-5 {
+    background: linear-gradient(135deg, #28a745, #34ce57);
+}
+
+.risk-cell.risk-6, .risk-cell.risk-8 {
+    background: linear-gradient(135deg, #ffc107, #ffca2c);
+    color: #333;
+}
+
+.risk-cell.risk-9, .risk-cell.risk-10 {
+    background: linear-gradient(135deg, #fd7e14, #ff922b);
+}
+
+.risk-cell.risk-12, .risk-cell.risk-15, .risk-cell.risk-16 {
+    background: linear-gradient(135deg, #fd7e14, #fa5252);
+}
+
+.risk-cell.risk-20, .risk-cell.risk-25 {
+    background: linear-gradient(135deg, #dc3545, #c92a2a);
+}
+
+.likelihood-label {
+    grid-column: 2 / -1;
+    text-align: center;
+    font-weight: bold;
+    color: #666;
+    margin-top: 10px;
+}
+
+.heatmap-description {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+/* Admin Maturity Cards */
+.admin-maturity-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 2px solid transparent;
+    text-align: center;
+}
+
+.admin-maturity-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.admin-maturity-card.level-1 {
+    border-color: #dc3545;
+    background: linear-gradient(135deg, #fff 0%, rgba(220,53,69,0.05) 100%);
+}
+
+.admin-maturity-card.level-2 {
+    border-color: #fd7e14;
+    background: linear-gradient(135deg, #fff 0%, rgba(253,126,20,0.05) 100%);
+}
+
+.admin-maturity-card.level-3 {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,193,7,0.05) 100%);
+}
+
+.admin-maturity-card.level-4 {
+    border-color: #20c997;
+    background: linear-gradient(135deg, #fff 0%, rgba(32,201,151,0.05) 100%);
+}
+
+.admin-maturity-card.level-5 {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #fff 0%, rgba(40,167,69,0.05) 100%);
+}
+
+.maturity-header .product-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.owner-info {
+    font-size: 0.875rem;
+    color: #666;
+    font-style: italic;
+}
+
+.maturity-body {
+    margin: 1rem 0;
+}
+
+.maturity-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.maturity-circle.level-1 { background: linear-gradient(135deg, #dc3545, #c82333); }
+.maturity-circle.level-2 { background: linear-gradient(135deg, #fd7e14, #e8690b); }
+.maturity-circle.level-3 { background: linear-gradient(135deg, #ffc107, #e0a800); }
+.maturity-circle.level-4 { background: linear-gradient(135deg, #20c997, #1ba085); }
+.maturity-circle.level-5 { background: linear-gradient(135deg, #28a745, #218838); }
+
+.overall-admin-stats {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1.5rem;
+    border-radius: 10px;
+}
+
+.stat-item h4 {
+    margin-bottom: 0.25rem;
+    font-weight: bold;
+}

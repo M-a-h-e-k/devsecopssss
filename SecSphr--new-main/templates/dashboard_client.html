@@ -81,7 +81,7 @@
 </div>
 
 <!-- Maturity Overview Heatmap -->
-{% if products and products|selectattr('maturity_score', 'greaterthan', 0)|list %}
+{% if products and products|selectattr('maturity_score', 'greaterthan', 0)|selectattr('status', 'equalto', 'completed')|list %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card dashboard-card">
@@ -94,7 +94,7 @@
             <div class="card-body">
                 <div class="row">
                     {% for product in products %}
-                        {% if product.maturity_score > 0 %}
+                        {% if product.maturity_score > 0 and product.status == 'completed' %}
                         <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
                             <div class="maturity-overview-card level-{{ product.maturity_score }} {% if product.status == 'completed' or product.completed_sections == product.total_sections %}marked{% endif %}">
                                 <div class="overview-header">
@@ -124,7 +124,7 @@
                 </div>
                 
                 <!-- Overall Statistics -->
-                {% set assessed_products = products|selectattr('maturity_score', 'greaterthan', 0)|list %}
+                {% set assessed_products = products|selectattr('maturity_score', 'greaterthan', 0)|selectattr('status', 'equalto', 'completed')|list %}
                 {% if assessed_products|length > 1 %}
                 <div class="overall-stats mt-4 pt-3 border-top">
                     <div class="row text-center">
@@ -258,7 +258,7 @@
                                         <div class="text-info">
                                             <i class="bi bi-graph-up fs-5"></i>
                                         </div>
-                                        {% if product.maturity_score > 0 %}
+                                        {% if product.maturity_score > 0 and product.status == 'completed' %}
                                             <div class="maturity-mini-badge level-{{ product.maturity_score }}">
                                                 Level {{ product.maturity_score }}
                                             </div>
