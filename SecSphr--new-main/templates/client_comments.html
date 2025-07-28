@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}Reviewer Communications - SecureSphere{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Chat Header -->
+    <div class="chat-header">
+        <div class="d-flex align-items-center">
+            <div class="chat-avatar">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="ms-3">
+                <h5 class="mb-0">Security Reviewer</h5>
+                <small class="text-light opacity-75">Review feedback and communications</small>
+            </div>
+        </div>
+        <div class="chat-actions">
+            <span class="badge bg-light text-dark">{{ comments|length }} conversations</span>
+            {% if comments %}
+                <button class="btn btn-outline-light btn-sm ms-2" onclick="markAllAsRead()">
+                    <i class="bi bi-check2-all me-1"></i>Mark All Read
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-messages" id="chatMessages">
+        {% if comments %}
+            {% for comment in comments %}
+                <!-- Group messages by conversation -->
+                <div class="message-group mb-4">
+                    <!-- Product Context Card -->
+                    <div class="product-context-card">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-box-seam text-primary me-2"></i>
+                            <strong>{{ comment.product.name }}</strong>
+                            {% if comment.response %}
+                                <span class="ms-2 text-muted">• Question #{{ loop.index }}</span>
+                            {% endif %}
+                        </div>
+                        {% if comment.response %}
+                            <div class="question-preview">
+                                <small class="text-muted">{{ comment.response.question[:80] }}{% if comment.response.question|length > 80 %}...{% endif %}</small>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Reviewer Message -->
+                    <div class="message reviewer-message">
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-person-badge text-primary me-2"></i>
+                                    <strong>{{ comment.lead.username }}</strong>
+                                    <span class="message-time ms-auto">{{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                                </div>
+                                <div class="message-status">
+                                    <span class="status-badge status-{{ comment.status }}">
+                                        {% if comment.status == 'approved' %}
+                                            <i class="bi bi-check-circle"></i> Approved
+                                        {% elif comment.status == 'needs_revision' %}
+                                            <i class="bi bi-exclamation-triangle"></i> Needs Revision
+                                        {% elif comment.status == 'rejected' %}
+                                            <i class="bi bi-x-circle"></i> Rejected
+                                        {% else %}
+                                            <i class="bi bi-clock"></i> Pending
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="message-text">
+                                {{ comment.comment }}
+                            </div>
+                            <div class="message-actions">
+                                {% if not comment.is_read %}
+                                    <a href="{{ url_for('mark_comment_read', comment_id=comment.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-check2"></i> Mark as Read
+                                    </a>
+                                {% endif %}
+                                {% set has_client_reply = comments|selectattr('parent_comment_id', 'equalto', comment.id)|selectattr('status', 'equalto', 'client_reply')|list|length > 0 %}
+                                {% if not has_client_reply %}
+                                    <button class="btn btn-sm btn-primary"
+                                            onclick="toggleReplyForm({{ comment.id }})">
+                                        <i class="bi bi-reply"></i> Reply
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Client Replies (Show all replies in conversation) -->
+                    {% set all_replies = comments|selectattr('parent_comment_id', 'equalto', comment.id)|list + comments|selectattr('parent_comment_id', 'in', comments|selectattr('parent_comment_id', 'equalto', comment.id)|map(attribute='id')|list)|list %}
+                    {% for reply in all_replies|sort(attribute='created_at') %}
+                        {% if reply.status == 'client_reply' %}
+                            <div class="message client-message">
+                                <div class="message-content">
+                                    <div class="message-header">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-circle text-success me-2"></i>
+                                            <strong>You</strong>
+                                            <span class="message-time ms-auto">{{ reply.created_at.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="message-text">
+                                        {% set comment_lines = reply.comment.split('\n') %}
+                                        {% for line in comment_lines %}
+                                            {% if line.startswith('[Evidence File:') and line.endswith(']') %}
+                                                {% set filename = line[15:-1] %}
+                                                <div class="evidence-attachment mt-2">
+                                                    <a href="{{ url_for('static', filename='uploads/' + filename) }}" target="_blank" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        <i class="bi bi-paperclip me-1"></i>{{ filename }}
+                                                    </a>
+                                                </div>
+                                            {% else %}
+                                                {% if line.strip() %}{{ line }}<br>{% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% elif reply.status == 'lead_reply' %}
+                            <div class="message reviewer-message">
+                                <div class="message-content">
+                                    <div class="message-header">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-person-badge text-primary me-2"></i>
+                                            <strong>{{ reply.lead.username }}</strong>
+                                            <span class="message-time ms-auto">{{ reply.created_at.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="message-text">
+                                        {% set comment_lines = reply.comment.split('\n') %}
+                                        {% for line in comment_lines %}
+                                            {% if line.startswith('[Evidence File:') and line.endswith(']') %}
+                                                {% set filename = line[15:-1] %}
+                                                <div class="evidence-attachment mt-2">
+                                                    <a href="{{ url_for('static', filename='uploads/' + filename) }}" target="_blank" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        <i class="bi bi-paperclip me-1"></i>{{ filename }}
+                                                    </a>
+                                                </div>
+                                            {% else %}
+                                                {% if line.strip() %}{{ line }}<br>{% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Reply Form - Only show if no client reply exists -->
+                    {% set has_client_reply = comments|selectattr('parent_comment_id', 'equalto', comment.id)|selectattr('status', 'equalto', 'client_reply')|list|length > 0 %}
+                    {% if not has_client_reply %}
+                        <div class="reply-form" id="replyForm{{ comment.id }}" style="display: none;">
+                            <form method="post" action="{{ url_for('client_reply_comment', comment_id=comment.id) }}" enctype="multipart/form-data">
+                                <div class="message-compose">
+                                    <div class="compose-input">
+                                        <textarea class="form-control" name="reply" rows="3"
+                                                  placeholder="Type your reply... (Ctrl+Enter to send, Escape to cancel)" required></textarea>
+                                    </div>
+                                    {% if comment.status in ['needs_revision', 'rejected'] %}
+                                        <div class="compose-attachment mt-2">
+                                            <label class="form-label">
+                                                <i class="bi bi-paperclip me-1"></i>Attach Evidence (Optional)
+                                            </label>
+                                            <input type="file" class="form-control form-control-sm" name="evidence"
+                                                   accept=".csv,.txt,.pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                        </div>
+                                    {% endif %}
+                                    <div class="compose-actions mt-3">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-send"></i> Send Reply
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary"
+                                                onclick="toggleReplyForm({{ comment.id }})">
+                                            Cancel
+                                        </button>
+                                        <small class="text-muted ms-3">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Use Ctrl+Enter to send quickly
+                                        </small>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-chat">
+                <div class="text-center py-5">
+                    <i class="bi bi-chat-dots display-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Messages Yet</h5>
+                    <p class="text-muted">Reviewer communications will appear here when available.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let isTyping = false;
+let typingTimeout = null;
+
+function toggleReplyForm(commentId) {
+    const form = document.getElementById('replyForm' + commentId);
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        form.scrollIntoView({ behavior: 'smooth' });
+
+        // Auto-mark as read when reply is clicked
+        const markReadBtn = document.querySelector(`a[href*="mark_comment_read"][href*="${commentId}"]`);
+        if (markReadBtn) {
+            fetch(markReadBtn.href, { method: 'GET' })
+                .then(() => {
+                    markReadBtn.style.display = 'none';
+                    // Remove any unread styling
+                    const messageGroup = form.closest('.message-group');
+                    if (messageGroup) {
+                        messageGroup.classList.remove('unread');
+                    }
+                    // Update unread count in navigation
+                    updateUnreadCount();
+                })
+                .catch(err => console.log('Auto-mark read failed:', err));
+        }
+
+        // Focus on textarea
+        const textarea = form.querySelector('textarea');
+        if (textarea) {
+            textarea.focus();
+            setupTypingIndicator(textarea, commentId);
+        }
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+function setupTypingIndicator(textarea, commentId) {
+    textarea.addEventListener('input', function() {
+        if (!isTyping) {
+            isTyping = true;
+            // Could add typing indicator here if needed
+        }
+        
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+        }, 1000);
+    });
+}
+
+function submitReply(form, commentId) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Sending...';
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // Show success message
+            showNotification('Reply sent successfully!', 'success');
+            
+            // Reset form
+            form.reset();
+            form.style.display = 'none';
+            
+            // Reload page after short delay to show new message
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error('Failed to send reply');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending reply:', error);
+        showNotification('Failed to send reply. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+    
+    return false; // Prevent default form submission
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function markAllAsRead() {
+    const unreadButtons = document.querySelectorAll('a[href*="mark_comment_read"]');
+    let promises = [];
+    
+    unreadButtons.forEach(btn => {
+        if (btn.style.display !== 'none') {
+            promises.push(
+                fetch(btn.href, { method: 'GET' })
+                    .then(() => {
+                        btn.style.display = 'none';
+                        const messageGroup = btn.closest('.message-group');
+                        if (messageGroup) {
+                            messageGroup.classList.remove('unread');
+                        }
+                    })
+            );
+        }
+    });
+    
+    Promise.all(promises)
+        .then(() => {
+            updateUnreadCount();
+            showNotification('All messages marked as read', 'success');
+        })
+        .catch(err => console.log('Error marking messages as read:', err));
+}
+
+// Auto-scroll to bottom on load
+document.addEventListener('DOMContentLoaded', function() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Setup form submissions
+    const replyForms = document.querySelectorAll('[id^="replyForm"] form');
+    replyForms.forEach(form => {
+        const commentId = form.closest('[id^="replyForm"]').id.replace('replyForm', '');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitReply(this, commentId);
+        });
+    });
+
+    // Auto-mark as read after 3 seconds of viewing
+    setTimeout(() => {
+        const unreadButtons = document.querySelectorAll('a[href*="mark_comment_read"]');
+        unreadButtons.forEach(btn => {
+            if (btn.style.display !== 'none') {
+                fetch(btn.href, { method: 'GET' })
+                    .then(() => {
+                        btn.style.display = 'none';
+                        updateUnreadCount();
+                    })
+                    .catch(err => console.log('Auto-mark read failed:', err));
+            }
+        });
+    }, 3000);
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+Enter to submit reply
+        if (e.ctrlKey && e.key === 'Enter') {
+            const activeTextarea = document.activeElement;
+            if (activeTextarea.tagName === 'TEXTAREA') {
+                const form = activeTextarea.closest('form');
+                if (form) {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
+        }
+        
+        // Escape to close reply forms
+        if (e.key === 'Escape') {
+            const openForms = document.querySelectorAll('[id^="replyForm"][style*="block"]');
+            openForms.forEach(form => {
+                form.style.display = 'none';
+            });
+        }
+    });
+
+    // Poll for new messages every 30 seconds
+    setInterval(function() {
+        checkForNewMessages();
+    }, 30000);
+});
+
+function checkForNewMessages() {
+    fetch('/api/chat-notifications')
+        .then(response => response.json())
+        .then(data => {
+            if (data.notifications && data.notifications.length > 0) {
+                const latestNotification = data.notifications[0];
+                const currentTimestamp = new Date().getTime();
+                const notificationTime = new Date(latestNotification.timestamp).getTime();
+                
+                // If message is less than 1 minute old, show notification
+                if (currentTimestamp - notificationTime < 60000) {
+                    showFloatingNotification(latestNotification);
+                }
+            }
+        })
+        .catch(error => console.log('Error checking for new messages:', error));
+}
+
+function showFloatingNotification(notification) {
+    // Create floating notification
+    const floatingNotif = document.createElement('div');
+    floatingNotif.className = 'floating-notification';
+    floatingNotif.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-chat-left-text text-primary me-2"></i>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">${notification.message}</div>
+                <small class="text-muted">${notification.product}</small>
+            </div>
+            <button class="btn btn-sm btn-outline-primary ms-2" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(floatingNotif);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+        if (floatingNotif.parentNode) {
+            floatingNotif.style.opacity = '0';
+            setTimeout(() => floatingNotif.remove(), 300);
+        }
+    }, 8000);
+}
+
+// Add CSS for better chat styling
+const chatCSS = `
+.message-group.unread {
+    border-left: 4px solid #fbbf24;
+    background-color: rgba(251, 191, 36, 0.05);
+}
+
+.reply-form {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.typing-indicator {
+    font-style: italic;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.message-actions {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.message-group:hover .message-actions {
+    opacity: 1;
+}
+
+.floating-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    max-width: 300px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.compose-input textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.message-compose {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+}
+`;
+
+// Inject chat CSS
+if (!document.getElementById('chatStyles')) {
+    const style = document.createElement('style');
+    style.id = 'chatStyles';
+    style.textContent = chatCSS;
+    document.head.appendChild(style);
+}
+</script>
+{% endblock %}

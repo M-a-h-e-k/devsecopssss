@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Client Dashboard - SecureSphere{% endblock %}
+
+{% block content %}
+<div class="dashboard-header text-center mb-4">
+    <h1 class="display-6 fw-bold mb-2">
+        <i class="bi bi-person-circle me-3"></i>Welcome to Your Dashboard
+    </h1>
+    <p class="lead mb-0">Manage your security assessments and track progress</p>
+</div>
+
+<!-- Dashboard Statistics -->
+<div class="dashboard-stats">
+    <div class="card stat-card text-center">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-8">
+                    <h3 class="mb-0">{{ products|length }}</h3>
+                    <p class="mb-0">Total Products</p>
+                </div>
+                <div class="col-4">
+                    <i class="bi bi-box-seam icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card stat-card text-center">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-8">
+                    <h3 class="mb-0">{{ products|selectattr('is_complete', 'equalto', false)|list|length }}</h3>
+                    <p class="mb-0">In Progress</p>
+                </div>
+                <div class="col-4">
+                    <i class="bi bi-clipboard-check icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card stat-card text-center">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-8">
+                    <h3 class="mb-0">{{ products|selectattr('is_complete', 'equalto', true)|list|length }}</h3>
+                    <p class="mb-0">Completed</p>
+                </div>
+                <div class="col-4">
+                    <i class="bi bi-check-circle icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-body text-center">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-plus-circle me-2"></i>Quick Actions
+                </h5>
+                <a href="{{ url_for('add_product') }}" class="btn btn-gradient-primary btn-lg rounded-pill px-4 me-3">
+                    <i class="bi bi-plus-lg me-2"></i>Add New Product
+                </a>
+                <a href="{{ url_for('client_comments') }}" class="btn btn-outline-info btn-lg rounded-pill px-4 me-3">
+                    <i class="bi bi-chat-left-text me-2"></i>Reviewer Comments
+                    {% if unread_comments > 0 %}
+                        <span class="badge bg-warning text-dark ms-1">{{ unread_comments }}</span>
+                    {% endif %}
+                </a>
+                <button class="btn btn-outline-primary btn-lg rounded-pill px-4" onclick="showHelpModal()">
+                    <i class="bi bi-question-circle me-2"></i>Need Help?
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maturity Overview Heatmap -->
+{% if products and products|selectattr('maturity_score', 'greaterthan', 0)|list %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>Security Maturity Overview
+                </h5>
+                <small class="text-muted">Quick visual overview of your products' security maturity levels</small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for product in products %}
+                        {% if product.maturity_score > 0 %}
+                        <div class="col-md-6 col-lg-4 col-xl-3 mb-3">
+                            <div class="maturity-overview-card level-{{ product.maturity_score }} {% if product.status == 'completed' or product.completed_sections == product.total_sections %}marked{% endif %}">
+                                <div class="overview-header">
+                                    <h6 class="product-name">{{ product.name }}</h6>
+                                    <span class="maturity-badge">Level {{ product.maturity_score }}</span>
+                                </div>
+                                <div class="overview-body">
+                                    <div class="maturity-circle level-{{ product.maturity_score }}">
+                                        <span class="level-num">{{ product.maturity_score }}</span>
+                                    </div>
+                                    <div class="overview-stats">
+                                        <small class="text-muted">
+                                            {{ product.completed_sections }}/{{ product.total_sections }} sections
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="overview-actions">
+                                    <a href="{{ url_for('product_results', product_id=product.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye me-1"></i>View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <!-- Overall Statistics -->
+                {% set assessed_products = products|selectattr('maturity_score', 'greaterthan', 0)|list %}
+                {% if assessed_products|length > 1 %}
+                <div class="overall-stats mt-4 pt-3 border-top">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <h5 class="stat-value">{{ assessed_products|length }}</h5>
+                                <p class="stat-label">Assessed Products</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <h5 class="stat-value">{{ "%.1f"|format((assessed_products|map(attribute='maturity_score')|sum / assessed_products|length)) }}</h5>
+                                <p class="stat-label">Average Maturity</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <h5 class="stat-value">{{ assessed_products|map(attribute='maturity_score')|max }}</h5>
+                                <p class="stat-label">Highest Level</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <h5 class="stat-value">{{ assessed_products|selectattr('maturity_score', 'equalto', 5)|list|length }}</h5>
+                                <p class="stat-label">Optimized Products</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Products Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>Your Products
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                    <div class="dashboard-content">
+                        {% for product in products %}
+                        <div class="card h-100 shadow-sm border-0 product-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title mb-0">
+                                        <i class="bi bi-box-seam me-2 text-primary"></i>{{ product.name }}
+                                    </h5>
+                                    <span class="status-badge-clean {{ product.status }}">
+                                        {% if product.status == 'in_progress' %}
+                                            <i class="bi bi-pencil"></i>In Progress
+                                        {% elif product.status == 'questions_done' %}
+                                            <i class="bi bi-clock"></i>Questions Done
+                                        {% elif product.status == 'under_review' %}
+                                            <i class="bi bi-eye"></i>Under Review
+                                        {% elif product.status == 'review_done' %}
+                                            <i class="bi bi-check"></i>Review Done
+                                        {% elif product.status == 'completed' %}
+                                            <i class="bi bi-check-circle"></i>Completed
+                                        {% elif product.status == 'needs_client_response' %}
+                                            <i class="bi bi-exclamation-triangle"></i>Needs Response
+                                        {% else %}
+                                            <i class="bi bi-circle"></i>{{ product.status_display }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
+                                <!-- Section-wise Dimensions -->
+                                {% if product.section_dimensions %}
+                                <div class="section-dimensions mb-3">
+                                    <h6 class="text-muted mb-2">
+                                        <i class="bi bi-bar-chart me-1"></i>Section Performance
+                                    </h6>
+                                    <div class="row">
+                                        {% for section, data in product.section_dimensions.items() %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="dimension-item">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small class="fw-medium">{{ section }}</small>
+                                                    <small class="text-muted">{{ data.percentage }}%</small>
+                                                </div>
+                                                <div class="progress" style="height: 4px;">
+                                                    <div class="progress-bar bg-primary" 
+                                                         style="width: {{ data.percentage }}%"></div>
+                                                </div>
+                                                <small class="text-muted">{{ data.question_count }} questions</small>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Assessment Progress -->
+                                <div class="assessment-progress mb-3">
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar"
+                                             style="width: {{ product.progress_percentage }}%"
+                                             aria-valuenow="{{ product.progress_percentage }}"
+                                             aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                    <div class="progress-info">
+                                        <small>{{ product.completed_sections }} of {{ product.total_sections }} sections</small>
+                                        <small>{{ product.progress_percentage }}% complete</small>
+                                    </div>
+                                </div>
+
+                                <!-- Stats Row -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-3">
+                                        <div class="text-primary">
+                                            <i class="bi bi-list-check fs-5"></i>
+                                        </div>
+                                        <small class="text-muted">{{ product.answered_questions }}/{{ product.total_questions }} Questions</small>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-success">
+                                            <i class="bi bi-shield-check fs-5"></i>
+                                        </div>
+                                        <small class="text-muted">{{ product.completed_sections }}/{{ product.total_sections }} Sections</small>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-info">
+                                            <i class="bi bi-graph-up fs-5"></i>
+                                        </div>
+                                        {% if product.maturity_score > 0 %}
+                                            <div class="maturity-mini-badge level-{{ product.maturity_score }}">
+                                                Level {{ product.maturity_score }}
+                                            </div>
+                                        {% else %}
+                                            <small class="text-muted">{{ product.overall_score }}% Score</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="{% if product.status == 'completed' %}text-success{% elif product.status == 'questions_done' %}text-warning{% elif product.status == 'under_review' %}text-info{% elif product.status == 'needs_client_response' %}text-danger{% else %}text-primary{% endif %}">
+                                            <i class="bi bi-{% if product.status == 'completed' %}check-circle{% elif product.status == 'questions_done' %}clock{% elif product.status == 'under_review' %}eye{% elif product.status == 'needs_client_response' %}exclamation-triangle{% else %}pencil{% endif %} fs-5"></i>
+                                        </div>
+                                        <small class="text-muted">{{ product.status_display }}</small>
+                                    </div>
+                                </div>
+
+                                {% if product.rejected_count > 0 %}
+                                <!-- Rejected Questions Alert -->
+                                <div class="alert alert-danger mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>{{ product.rejected_count }} question{{ 's' if product.rejected_count != 1 else '' }} need{{ '' if product.rejected_count != 1 else 's' }} your attention</strong>
+                                    </div>
+                                    <small class="text-muted">Reviewer has rejected some responses and requires re-submission.</small>
+                                </div>
+                                {% endif %}
+
+                                <!-- Action Buttons -->
+                                <div class="d-grid gap-2">
+                                    {% if product.status in ['questions_done', 'under_review', 'completed', 'review_done'] %}
+                                        <a href="{{ url_for('product_results', product_id=product.id) }}"
+                                           class="btn btn-outline-primary rounded-pill">
+                                            <i class="bi bi-bar-chart me-2"></i>View Results
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-outline-secondary rounded-pill" disabled title="Complete all questions to view results">
+                                            <i class="bi bi-bar-chart me-2"></i>View Results
+                                        </button>
+                                    {% endif %}
+
+                                    {% if product.status == 'completed' %}
+                                        <button class="btn btn-success rounded-pill" disabled>
+                                            <i class="bi bi-check-circle me-2"></i>Assessment Complete
+                                        </button>
+                                    {% elif product.status == 'questions_done' %}
+                                        <button class="btn btn-warning rounded-pill" disabled>
+                                            <i class="bi bi-clock me-2"></i>Awaiting Review
+                                        </button>
+                                    {% elif product.status == 'under_review' %}
+                                        <button class="btn btn-info rounded-pill" disabled>
+                                            <i class="bi bi-eye me-2"></i>Under Review
+                                        </button>
+                                    {% elif product.status == 'needs_client_response' %}
+                                        <a href="{{ url_for('client_comments') }}"
+                                           class="btn btn-danger rounded-pill">
+                                            <i class="bi bi-exclamation-triangle me-2"></i>Review Feedback
+                                        </a>
+                                    {% elif product.status == 'review_done' %}
+                                        <a href="{{ url_for('fill_questionnaire_section', product_id=product.id, section_idx=product.next_section_idx) }}"
+                                           class="btn btn-gradient-primary rounded-pill">
+                                            <i class="bi bi-pencil me-2"></i>Address Feedback
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('fill_questionnaire_section', product_id=product.id, section_idx=product.next_section_idx) }}"
+                                           class="btn btn-gradient-primary rounded-pill">
+                                            <i class="bi bi-play-circle me-2"></i>Continue Assessment
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted mb-3"></i>
+                        <h4 class="text-muted">No Products Yet</h4>
+                        <p class="text-muted mb-4">Start your security assessment journey by adding your first product.</p>
+                        <a href="{{ url_for('add_product') }}" class="btn btn-gradient-primary btn-lg rounded-pill px-4">
+                            <i class="bi bi-plus-lg me-2"></i>Add Your First Product
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">
+                    <i class="bi bi-question-circle me-2"></i>How to Use Your Dashboard
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-plus-circle me-2"></i>Adding Products</h6>
+                        <p>Click "Add New Product" to create a new security assessment for your product or service.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-clipboard-check me-2"></i>Assessments</h6>
+                        <p>Complete questionnaires to evaluate your product's security posture across multiple dimensions.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-bar-chart me-2"></i>Results</h6>
+                        <p>View comprehensive reports and scores for each completed assessment.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-shield-check me-2"></i>Security</h6>
+                        <p>All your data is encrypted and securely stored. Only you can access your assessments.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showHelpModal() {
+    new bootstrap.Modal(document.getElementById('helpModal')).show();
+}
+
+// Add animation to stats cards
+document.addEventListener('DOMContentLoaded', function() {
+    const statsCards = document.querySelectorAll('.stat-card');
+    statsCards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.transform = 'translateY(-2px)';
+        }, index * 100);
+    });
+
+    // Add hover effect to product cards
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-3px)';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+{% endblock %}
