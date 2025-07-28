@@ -73,7 +73,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h6 class="text-muted mb-1">Unique Clients</h6>
-                            <h3 class="mb-0">{{ analytics_data|map(attribute='owner')|map(attribute='id')|list|unique|length }}</h3>
+                            <h3 class="mb-0">{{ analytics_stats.unique_clients }}</h3>
                         </div>
                         <div class="text-warning">
                             <i class="bi bi-people fs-1"></i>

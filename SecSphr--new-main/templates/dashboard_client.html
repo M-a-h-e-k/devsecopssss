@@ -30,7 +30,7 @@
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-8">
-                    <h3 class="mb-0">{{ products|selectattr('is_complete', 'equalto', false)|list|length }}</h3>
+                    <h3 class="mb-0">{{ products|rejectattr('status', 'equalto', 'completed')|list|length }}</h3>
                     <p class="mb-0">In Progress</p>
                 </div>
                 <div class="col-4">
@@ -44,7 +44,7 @@
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-8">
-                    <h3 class="mb-0">{{ products|selectattr('is_complete', 'equalto', true)|list|length }}</h3>
+                    <h3 class="mb-0">{{ products|selectattr('status', 'equalto', 'completed')|list|length }}</h3>
                     <p class="mb-0">Completed</p>
                 </div>
                 <div class="col-4">
@@ -130,25 +130,25 @@
                     <div class="row text-center">
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <h5 class="stat-value">{{ assessed_products|length }}</h5>
+                                <h5 class="stat-value">{{ client_stats.assessed_count }}</h5>
                                 <p class="stat-label">Assessed Products</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <h5 class="stat-value">{{ "%.1f"|format((assessed_products|map(attribute='maturity_score')|sum / assessed_products|length)) }}</h5>
+                                <h5 class="stat-value">{{ client_stats.avg_maturity }}</h5>
                                 <p class="stat-label">Average Maturity</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <h5 class="stat-value">{{ assessed_products|map(attribute='maturity_score')|max }}</h5>
+                                <h5 class="stat-value">{{ client_stats.max_maturity }}</h5>
                                 <p class="stat-label">Highest Level</p>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <h5 class="stat-value">{{ assessed_products|selectattr('maturity_score', 'equalto', 5)|list|length }}</h5>
+                                <h5 class="stat-value">{{ products|selectattr('maturity_score', 'equalto', 5)|list|length }}</h5>
                                 <p class="stat-label">Optimized Products</p>
                             </div>
                         </div>
