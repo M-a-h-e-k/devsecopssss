@@ -102,188 +102,256 @@
     </div>
 </div>
 
-<!-- Maturity Level Heatmap -->
+<!-- Security Maturity Heatmap -->
+{% if dimension_scores %}
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-0">
-                            <i class="bi bi-grid-3x3-gap me-2"></i>Security Maturity Heatmap
-                        </h5>
-                        <small class="text-muted">Visual representation of your security maturity across all dimensions</small>
-                    </div>
-                    <button class="btn btn-outline-primary btn-sm" onclick="exportHeatmapData()" title="Export heatmap data">
-                        <i class="bi bi-download me-1"></i>Export
-                    </button>
+        <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>Security Maturity Heatmap
+                    </h5>
+                    <small class="text-muted">Visual representation of your security maturity across all dimensions</small>
+                </div>
+                <div class="heatmap-legend">
+                    <span class="legend-item level-1">Level 1</span>
+                    <span class="legend-item level-2">Level 2</span>
+                    <span class="legend-item level-3">Level 3</span>
+                    <span class="legend-item level-4">Level 4</span>
+                    <span class="legend-item level-5">Level 5</span>
                 </div>
             </div>
             <div class="card-body">
-                <!-- Overall Maturity Level Display -->
-                <div class="maturity-level-display mb-4">
-                    <div class="text-center">
-                        <h4 class="mb-2">Overall Maturity Level</h4>
-                        <div class="maturity-badge-large level-{{ maturity_score }}">
-                            <div class="level-number">{{ maturity_score }}</div>
-                            <div class="level-text">
-                                {% if maturity_score == 1 %}
-                                    Initial
-                                {% elif maturity_score == 2 %}
-                                    Developing
-                                {% elif maturity_score == 3 %}
-                                    Defined
-                                {% elif maturity_score == 4 %}
-                                    Managed
-                                {% elif maturity_score == 5 %}
-                                    Optimized
-                                {% else %}
-                                    Not Assessed
-                                {% endif %}
-                            </div>
+                <div class="results-heatmap-container">
+                    <!-- Main Heatmap Grid -->
+                    <div class="results-heatmap-grid">
+                        <div class="heatmap-header">
+                            <div class="header-cell dimension-header">Dimension</div>
+                            <div class="header-cell score-header">Current Level</div>
+                            <div class="header-cell questions-header">Questions Answered</div>
+                            <div class="header-cell percentage-header">Completion %</div>
+                            <div class="header-cell recommendation-header">Next Steps</div>
                         </div>
-                        <p class="text-muted mt-2">
-                            {% if maturity_score == 1 %}
-                                Basic security measures in place with ad-hoc processes
-                            {% elif maturity_score == 2 %}
-                                Some security processes defined but inconsistently applied
-                            {% elif maturity_score == 3 %}
-                                Well-defined security processes documented and followed
-                            {% elif maturity_score == 4 %}
-                                Security processes are measured and controlled
-                            {% elif maturity_score == 5 %}
-                                Continuous improvement with optimized security processes
-                            {% else %}
-                                Complete your assessment to see your maturity level
-                            {% endif %}
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Section-wise Performance -->
-                {% if section_dimensions %}
-                <div class="section-performance mb-4">
-                    <h6 class="text-muted mb-3">
-                        <i class="bi bi-bar-chart me-2"></i>Section-wise Performance Breakdown
-                    </h6>
-                    <div class="row">
-                        {% for section, data in section_dimensions.items() %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="section-card">
-                                <div class="section-header">
-                                    <h6 class="section-title">{{ section }}</h6>
-                                    <span class="section-score">{{ data.average_score }}/5</span>
-                                </div>
-                                <div class="section-graph mb-2">
-                                    <div class="score-bar-container">
-                                        <div class="score-bar level-{{ data.average_score|round|int }}" 
-                                             style="width: {{ (data.average_score / 5 * 100)|round }}%"></div>
-                                    </div>
-                                </div>
-                                <div class="section-details">
-                                    <small class="text-muted">
-                                        {{ data.question_count }} questions • 
-                                        Level {{ data.average_score|round|int }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Heatmap Grid -->
-                {% if dimension_scores %}
-                <div class="heatmap-container">
-                    <div class="row">
+                        
                         {% for dimension, score_data in dimension_scores.items() %}
-                        <div class="col-md-6 col-lg-4 mb-3">
-                            <div class="heatmap-cell level-{{ score_data.average_score|round|int }}">
-                                <div class="cell-header">
-                                    <h6 class="dimension-title">{{ dimension }}</h6>
-                                    <span class="maturity-level">Level {{ score_data.average_score|round|int }}</span>
+                        <div class="heatmap-row" data-dimension="{{ dimension }}">
+                            <div class="dimension-cell">
+                                <div class="dimension-name">{{ dimension }}</div>
+                                <div class="dimension-icon">
+                                    {% if dimension == 'Build and Deployment' %}
+                                        <i class="bi bi-tools"></i>
+                                    {% elif dimension == 'Culture and Organization' %}
+                                        <i class="bi bi-people"></i>
+                                    {% elif dimension == 'Implementation' %}
+                                        <i class="bi bi-code-slash"></i>
+                                    {% elif dimension == 'Information Gathering' %}
+                                        <i class="bi bi-search"></i>
+                                    {% elif dimension == 'Test and Verification' %}
+                                        <i class="bi bi-check-circle"></i>
+                                    {% endif %}
                                 </div>
-                                <div class="cell-body">
-                                    <div class="score-display">{{ score_data.average_score }}/5</div>
-                                    <div class="questions-count">{{ score_data.question_count }} questions</div>
+                            </div>
+                            
+                            <div class="score-cell">
+                                <div class="maturity-level level-{{ score_data.maturity_level or 1 }}">
+                                    <span class="level-number">{{ score_data.maturity_level or 1 }}</span>
+                                    <span class="level-text">Level {{ score_data.maturity_level or 1 }}</span>
                                 </div>
-                                <div class="cell-progress">
-                                    <div class="progress">
-                                        <div class="progress-bar level-{{ score_data.average_score|round|int }}-bg" 
-                                             style="width: {{ (score_data.average_score / 5 * 100)|round }}%"></div>
+                            </div>
+                            
+                            <div class="questions-cell">
+                                <div class="questions-progress">
+                                    <div class="progress-circle">
+                                        <div class="progress-text">
+                                            {{ score_data.answered_questions or 0 }}/{{ score_data.total_questions or 0 }}
+                                        </div>
                                     </div>
+                                </div>
+                            </div>
+                            
+                            <div class="percentage-cell">
+                                <div class="percentage-bar">
+                                    <div class="percentage-fill" 
+                                         style="width: {{ score_data.percentage or 0 }}%"
+                                         data-percentage="{{ score_data.percentage or 0 }}">
+                                    </div>
+                                    <span class="percentage-text">{{ "%.1f"|format(score_data.percentage or 0) }}%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="recommendation-cell">
+                                <div class="next-steps">
+                                    {% set current_level = score_data.maturity_level or 1 %}
+                                    {% if current_level < 5 %}
+                                        <span class="next-level-badge level-{{ current_level + 1 }}">
+                                            Target: Level {{ current_level + 1 }}
+                                        </span>
+                                        <small class="improvement-text">
+                                            {% if current_level == 1 %}
+                                                Focus on establishing basic processes
+                                            {% elif current_level == 2 %}
+                                                Implement systematic approaches
+                                            {% elif current_level == 3 %}
+                                                Enhance with automation and metrics
+                                            {% elif current_level == 4 %}
+                                                Optimize and continuously improve
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        <span class="optimized-badge">
+                                            <i class="bi bi-check-circle me-1"></i>Optimized
+                                        </span>
+                                        <small class="improvement-text">Maintain excellence</small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                </div>
-
-                <!-- Maturity Legend -->
-                <div class="maturity-legend mt-4">
-                    <h6 class="mb-3">Maturity Levels</h6>
-                    <div class="row">
-                        <div class="col-md-2 col-sm-4 col-6 mb-2">
-                            <div class="legend-item level-1">
-                                <span class="legend-color"></span>
-                                <span class="legend-text">Level 1 - Initial</span>
+                    
+                    <!-- Heatmap Summary -->
+                    <div class="heatmap-summary mt-4">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="summary-item">
+                                    <div class="summary-icon">
+                                        <i class="bi bi-trophy"></i>
+                                    </div>
+                                    <div class="summary-content">
+                                        <h6>Strongest Dimension</h6>
+                                        {% set max_dimension = dimension_scores|dictsort(attribute='1.maturity_level')|reverse|first %}
+                                        <p>{{ max_dimension[0] }} (Level {{ max_dimension[1].maturity_level or 1 }})</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-2 col-sm-4 col-6 mb-2">
-                            <div class="legend-item level-2">
-                                <span class="legend-color"></span>
-                                <span class="legend-text">Level 2 - Developing</span>
+                            <div class="col-md-4">
+                                <div class="summary-item">
+                                    <div class="summary-icon">
+                                        <i class="bi bi-target"></i>
+                                    </div>
+                                    <div class="summary-content">
+                                        <h6>Focus Area</h6>
+                                        {% set min_dimension = dimension_scores|dictsort(attribute='1.maturity_level')|first %}
+                                        <p>{{ min_dimension[0] }} (Level {{ min_dimension[1].maturity_level or 1 }})</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-2 col-sm-4 col-6 mb-2">
-                            <div class="legend-item level-3">
-                                <span class="legend-color"></span>
-                                <span class="legend-text">Level 3 - Defined</span>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-sm-4 col-6 mb-2">
-                            <div class="legend-item level-4">
-                                <span class="legend-color"></span>
-                                <span class="legend-text">Level 4 - Managed</span>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-sm-4 col-6 mb-2">
-                            <div class="legend-item level-5">
-                                <span class="legend-color"></span>
-                                <span class="legend-text">Level 5 - Optimized</span>
+                            <div class="col-md-4">
+                                <div class="summary-item">
+                                    <div class="summary-icon">
+                                        <i class="bi bi-graph-up-arrow"></i>
+                                    </div>
+                                    <div class="summary-content">
+                                        <h6>Improvement Potential</h6>
+                                        {% set improvement_levels = 5 * dimension_scores|length - (dimension_scores.values()|sum(attribute='maturity_level') or dimension_scores|length) %}
+                                        <p>{{ improvement_levels }} levels to optimize</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
-<!-- Dimension Scores Overview -->
-{% if dimension_scores %}
+<!-- Detailed Dimension Analysis -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
+        <div class="card dashboard-card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-graph-up me-2"></i>Dimension-wise Scores
+                    <i class="bi bi-bar-chart me-2"></i>Detailed Dimension Analysis
                 </h5>
+                <small class="text-muted">Comprehensive breakdown of each security dimension</small>
             </div>
             <div class="card-body">
-                <div class="row">
+                <div class="dimension-analysis">
                     {% for dimension, score_data in dimension_scores.items() %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="dimension-score-card">
-                            <div class="dimension-name">{{ dimension }}</div>
-                            <div class="dimension-score">{{ score_data.average_score }}/5</div>
-                            <div class="dimension-details">
-                                <small class="text-muted">
-                                    {{ score_data.question_count }} questions • 
-                                    Total: {{ score_data.total_score }}
-                                </small>
+                    <div class="dimension-section mb-4">
+                        <div class="dimension-header-section">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="dimension-title">
+                                    {% if dimension == 'Build and Deployment' %}
+                                        <i class="bi bi-tools me-2"></i>
+                                    {% elif dimension == 'Culture and Organization' %}
+                                        <i class="bi bi-people me-2"></i>
+                                    {% elif dimension == 'Implementation' %}
+                                        <i class="bi bi-code-slash me-2"></i>
+                                    {% elif dimension == 'Information Gathering' %}
+                                        <i class="bi bi-search me-2"></i>
+                                    {% elif dimension == 'Test and Verification' %}
+                                        <i class="bi bi-check-circle me-2"></i>
+                                    {% endif %}
+                                    {{ dimension }}
+                                </h6>
+                                <div class="dimension-score-badge level-{{ score_data.maturity_level or 1 }}">
+                                    Level {{ score_data.maturity_level or 1 }}
+                                </div>
+                            </div>
+                            
+                            <div class="dimension-progress mb-3">
+                                <div class="progress progress-dimension">
+                                    <div class="progress-bar level-{{ score_data.maturity_level or 1 }}" 
+                                         style="width: {{ (score_data.maturity_level or 1) * 20 }}%"
+                                         aria-valuenow="{{ (score_data.maturity_level or 1) * 20 }}" 
+                                         aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <div class="progress-labels">
+                                    <span>Level 1</span>
+                                    <span>Level 2</span>
+                                    <span>Level 3</span>
+                                    <span>Level 4</span>
+                                    <span>Level 5</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Questions in this dimension -->
+                        <div class="dimension-questions">
+                            <div class="questions-grid">
+                                {% set dimension_responses = responses|selectattr('section', 'equalto', dimension)|list %}
+                                {% for response in dimension_responses %}
+                                <div class="question-card">
+                                    <div class="question-header">
+                                        <div class="question-number">Q{{ loop.index }}</div>
+                                        <div class="question-status">
+                                            {% if response.answer %}
+                                                <span class="status-answered">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="status-unanswered">
+                                                    <i class="bi bi-circle"></i>
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="question-content">
+                                        <p class="question-text">{{ response.question }}</p>
+                                        {% if response.answer %}
+                                            <div class="answer-section">
+                                                <strong>Answer:</strong>
+                                                <span class="answer-badge answer-{{ response.answer.lower() }}">
+                                                    {{ response.answer }}
+                                                </span>
+                                                {% if response.client_comment %}
+                                                    <div class="comment-section mt-2">
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-chat-text me-1"></i>
+                                                            {{ response.client_comment }}
+                                                        </small>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
                             </div>
                         </div>
                     </div>
@@ -293,381 +361,164 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-<!-- Risk Assessment Heatmap -->
-{% if maturity_score > 0 %}
+<!-- Action Items and Recommendations -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
+        <div class="card dashboard-card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-grid-3x3-gap me-2"></i>Risk Assessment Heatmap
+                    <i class="bi bi-list-check me-2"></i>Recommended Action Items
                 </h5>
-                <small class="text-muted">Visual representation of risk likelihood and impact across security dimensions</small>
+                <small class="text-muted">Prioritized recommendations to improve your security posture</small>
             </div>
             <div class="card-body">
-                <div class="heatmap-description mb-4">
-                    <p class="text-muted">
-                        A risk map offers a visualized, comprehensive view of the likelihood and impact of an organization's risks.
-                        Risks that fall into the green areas of the map require no action or monitoring. Yellow and orange risks
-                        require action. Risks that fall into red portions of the map need urgent action.
-                    </p>
-                </div>
-                
-                <div class="risk-heatmap-container">
-                    <div class="heatmap-grid">
-                        <!-- Header Row -->
-                        <div class="heatmap-header">
-                            <div class="impact-label">
-                                <span class="vertical-text">IMPACT</span>
+                <div class="action-items">
+                    {% for dimension, score_data in dimension_scores.items() %}
+                        {% set current_level = score_data.maturity_level or 1 %}
+                        {% if current_level < 5 %}
+                        <div class="action-item priority-{{ 6 - current_level }}">
+                            <div class="action-icon">
+                                <i class="bi bi-arrow-up-circle"></i>
                             </div>
-                            <div class="grid-headers">
-                                <div class="grid-header"></div>
-                                <div class="grid-header">Improbable<br><small>(1)</small></div>
-                                <div class="grid-header">Remote<br><small>(2)</small></div>
-                                <div class="grid-header">Occasional<br><small>(3)</small></div>
-                                <div class="grid-header">Probable<br><small>(4)</small></div>
-                                <div class="grid-header">Frequent<br><small>(5)</small></div>
+                            <div class="action-content">
+                                <h6>Improve {{ dimension }}</h6>
+                                <p>
+                                    Current: Level {{ current_level }} → Target: Level {{ current_level + 1 }}
+                                </p>
+                                <div class="action-description">
+                                    {% if dimension == 'Build and Deployment' %}
+                                        {% if current_level == 1 %}
+                                            Establish basic build and deployment processes with version control
+                                        {% elif current_level == 2 %}
+                                            Implement automated build pipelines and deployment scripts
+                                        {% elif current_level == 3 %}
+                                            Add security scanning and automated testing to CI/CD pipeline
+                                        {% elif current_level == 4 %}
+                                            Implement advanced security controls and continuous monitoring
+                                        {% endif %}
+                                    {% elif dimension == 'Culture and Organization' %}
+                                        {% if current_level == 1 %}
+                                            Establish security awareness and basic training programs
+                                        {% elif current_level == 2 %}
+                                            Create security policies and incident response procedures
+                                        {% elif current_level == 3 %}
+                                            Implement regular security training and culture assessment
+                                        {% elif current_level == 4 %}
+                                            Foster security-first culture with continuous improvement
+                                        {% endif %}
+                                    {% elif dimension == 'Implementation' %}
+                                        {% if current_level == 1 %}
+                                            Implement basic secure coding practices and code reviews
+                                        {% elif current_level == 2 %}
+                                            Establish secure development standards and guidelines
+                                        {% elif current_level == 3 %}
+                                            Add automated security testing and dependency scanning
+                                        {% elif current_level == 4 %}
+                                            Implement advanced threat modeling and security architecture
+                                        {% endif %}
+                                    {% elif dimension == 'Information Gathering' %}
+                                        {% if current_level == 1 %}
+                                            Establish basic threat intelligence and vulnerability tracking
+                                        {% elif current_level == 2 %}
+                                            Implement systematic security monitoring and logging
+                                        {% elif current_level == 3 %}
+                                            Add advanced threat detection and incident correlation
+                                        {% elif current_level == 4 %}
+                                            Implement predictive security analytics and threat hunting
+                                        {% endif %}
+                                    {% elif dimension == 'Test and Verification' %}
+                                        {% if current_level == 1 %}
+                                            Establish basic security testing and vulnerability scanning
+                                        {% elif current_level == 2 %}
+                                            Implement regular penetration testing and security assessments
+                                        {% elif current_level == 3 %}
+                                            Add automated security testing and continuous validation
+                                        {% elif current_level == 4 %}
+                                            Implement advanced testing methodologies and security verification
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="action-priority">
+                                <span class="priority-badge priority-{{ 6 - current_level }}">
+                                    {% if current_level == 1 %}Critical{% elif current_level == 2 %}High{% elif current_level == 3 %}Medium{% else %}Low{% endif %}
+                                </span>
                             </div>
                         </div>
-                        
-                        <!-- Risk Grid Rows -->
-                        <div class="heatmap-row">
-                            <div class="row-label">Catastrophic<br><small>(5)</small></div>
-                            <div class="risk-cell risk-5">5</div>
-                            <div class="risk-cell risk-10">10</div>
-                            <div class="risk-cell risk-15">15</div>
-                            <div class="risk-cell risk-20">20</div>
-                            <div class="risk-cell risk-25">25</div>
-                        </div>
-                        
-                        <div class="heatmap-row">
-                            <div class="row-label">Significant<br><small>(4)</small></div>
-                            <div class="risk-cell risk-4">4</div>
-                            <div class="risk-cell risk-8">8</div>
-                            <div class="risk-cell risk-12">12</div>
-                            <div class="risk-cell risk-16">16</div>
-                            <div class="risk-cell risk-20">20</div>
-                        </div>
-                        
-                        <div class="heatmap-row">
-                            <div class="row-label">Moderate<br><small>(3)</small></div>
-                            <div class="risk-cell risk-3">3</div>
-                            <div class="risk-cell risk-6">6</div>
-                            <div class="risk-cell risk-9">9</div>
-                            <div class="risk-cell risk-12">12</div>
-                            <div class="risk-cell risk-15">15</div>
-                        </div>
-                        
-                        <div class="heatmap-row">
-                            <div class="row-label">Low<br><small>(2)</small></div>
-                            <div class="risk-cell risk-2">2</div>
-                            <div class="risk-cell risk-4">4</div>
-                            <div class="risk-cell risk-6">6</div>
-                            <div class="risk-cell risk-8">8</div>
-                            <div class="risk-cell risk-10">10</div>
-                        </div>
-                        
-                        <div class="heatmap-row">
-                            <div class="row-label">Negligible<br><small>(1)</small></div>
-                            <div class="risk-cell risk-1">1</div>
-                            <div class="risk-cell risk-2">2</div>
-                            <div class="risk-cell risk-3">3</div>
-                            <div class="risk-cell risk-4">4</div>
-                            <div class="risk-cell risk-5">5</div>
-                        </div>
-                        
-                        <!-- Likelihood Label -->
-                        <div class="likelihood-label">
-                            <span>LIKELIHOOD</span>
-                        </div>
-                    </div>
+                        {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
 
-<!-- Security Dimensions Results -->
-<div class="results-container">
-    {% if responses %}
-        {% set sections = {} %}
-        {% for resp in responses %}
-            {% if resp.section not in sections %}
-                {% set _ = sections.update({resp.section: []}) %}
-            {% endif %}
-            {% set _ = sections[resp.section].append(resp) %}
-        {% endfor %}
-
-        <!-- Section Navigation -->
-        <div class="section-navigation mb-4">
-            <nav class="nav nav-pills nav-fill">
-                {% for section_name in sections.keys() %}
-                    <button class="nav-link {% if loop.first %}active{% endif %}"
-                            data-bs-toggle="pill"
-                            data-bs-target="#section-{{ loop.index0 }}"
-                            type="button">
-                        <i class="bi bi-shield-shaded me-2"></i>
-                        {{ section_name }}
-                        <span class="badge bg-light text-dark ms-2">{{ sections[section_name]|length }}</span>
-                    </button>
-                {% endfor %}
-            </nav>
-        </div>
-
-        <!-- Section Content -->
-        <div class="tab-content" id="sectionsContent">
-            {% for section_name, section_responses in sections.items() %}
-                <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
-                     id="section-{{ loop.index0 }}">
-
-                    <!-- Section Header -->
-                    <div class="section-header-card mb-4">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h4 class="mb-1">
-                                    <i class="bi bi-shield-fill text-primary me-2"></i>
-                                    {{ section_name }}
-                                </h4>
-                                <p class="text-muted mb-0">{{ section_responses|length }} questions assessed</p>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <div class="section-score">
-                                    <span class="score-value" data-section="{{ section_name }}">-</span>
-                                    <span class="score-label">Section Score</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Questions Grid -->
-                    <div class="questions-grid">
-                        {% for resp in section_responses %}
-                            {% set lead_comment = resp.lead_comments|first %}
-                            <div class="question-card {% if lead_comment %}status-{{ lead_comment.status }}{% else %}status-pending{% endif %}">
-                                <div class="question-header">
-                                    <div class="question-number">
-                                        <span class="number">{{ loop.index }}</span>
-                                    </div>
-                                    <div class="question-status">
-                                        {% if lead_comment %}
-                                            {% if lead_comment.status == 'approved' %}
-                                                <span class="status-indicator approved">
-                                                    <i class="bi bi-check-circle-fill"></i>
-                                                </span>
-                                            {% elif lead_comment.status == 'needs_revision' %}
-                                                <span class="status-indicator revision">
-                                                    <i class="bi bi-exclamation-triangle-fill"></i>
-                                                </span>
-                                            {% elif lead_comment.status == 'rejected' %}
-                                                <span class="status-indicator rejected">
-                                                    <i class="bi bi-x-circle-fill"></i>
-                                                </span>
-                                            {% else %}
-                                                <span class="status-indicator pending">
-                                                    <i class="bi bi-clock-fill"></i>
-                                                </span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="status-indicator pending">
-                                                <i class="bi bi-clock-fill"></i>
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="question-content">
-                                    <h6 class="question-text">{{ resp.question }}</h6>
-
-                                    <div class="answer-section">
-                                        <div class="answer-label">Your Answer:</div>
-                                        <div class="answer-value">{{ resp.answer }}</div>
-                                    </div>
-
-                                    {% if resp.client_comment %}
-                                        <div class="comment-section">
-                                            <div class="comment-label">
-                                                <i class="bi bi-chat-text me-1"></i>Your Comment:
-                                            </div>
-                                            <div class="comment-value">{{ resp.client_comment }}</div>
-                                        </div>
-                                    {% endif %}
-
-                                    {% if resp.evidence_path %}
-                                        <div class="evidence-section">
-                                            <div class="evidence-label">
-                                                <i class="bi bi-paperclip me-1"></i>Evidence:
-                                            </div>
-                                            <a href="/{{ resp.evidence_path }}" target="_blank"
-                                               class="evidence-link">
-                                                <i class="bi bi-file-earmark"></i>
-                                                View Attachment
-                                            </a>
-                                        </div>
-                                    {% endif %}
-
-                                    {% if lead_comment and lead_comment.comment %}
-                                        <div class="reviewer-feedback">
-                                            <div class="feedback-label">
-                                                <i class="bi bi-person-badge me-1"></i>Reviewer Feedback:
-                                            </div>
-                                            <div class="feedback-content">{{ lead_comment.comment }}</div>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="empty-results">
-            <div class="text-center py-5">
-                <i class="bi bi-clipboard-data display-1 text-muted mb-3"></i>
-                <h5 class="text-muted">No Assessment Data</h5>
-                <p class="text-muted">Complete your security questionnaire to view results here.</p>
-                <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
-                    <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-                </a>
+<!-- Export and Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-body text-center">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-download me-2"></i>Export Results
+                </h5>
+                <button class="btn btn-outline-primary btn-lg rounded-pill px-4 me-3" onclick="exportToPDF()">
+                    <i class="bi bi-file-pdf me-2"></i>Export to PDF
+                </button>
+                <button class="btn btn-outline-secondary btn-lg rounded-pill px-4 me-3" onclick="exportToExcel()">
+                    <i class="bi bi-file-excel me-2"></i>Export to Excel
+                </button>
+                <button class="btn btn-outline-info btn-lg rounded-pill px-4" onclick="shareResults()">
+                    <i class="bi bi-share me-2"></i>Share Results
+                </button>
             </div>
         </div>
-    {% endif %}
+    </div>
 </div>
 
 <script>
-// Calculate and display scores
-document.addEventListener('DOMContentLoaded', function() {
-    const responses = {{ responses_json | tojson }};
-    const sections = {};
-
-    // Group responses by section
-    responses.forEach(resp => {
-        if (!sections[resp.section]) {
-            sections[resp.section] = [];
-        }
-        sections[resp.section].push(resp);
-    });
-
-    // Calculate section scores
-    let totalScore = 0;
-    let totalQuestions = 0;
-    const sectionCount = Object.keys(sections).length;
-
-    Object.keys(sections).forEach(sectionName => {
-        const sectionResponses = sections[sectionName];
-        const sectionScore = calculateSectionScore(sectionResponses);
-
-        // Update section score display
-        const scoreElement = document.querySelector(`[data-section="${sectionName}"]`);
-        if (scoreElement) {
-            scoreElement.textContent = sectionScore + '%';
-        }
-
-        totalScore += sectionScore;
-        totalQuestions += sectionResponses.length;
-    });
-
-    // Update overall metrics
-    const overallScore = sectionCount > 0 ? Math.round(totalScore / sectionCount) : 0;
-    document.getElementById('overallScore').textContent = overallScore + '%';
-    document.getElementById('sectionsCount').textContent = sectionCount;
-    document.getElementById('completionRate').textContent =
-        totalQuestions > 0 ? Math.round((responses.length / totalQuestions) * 100) + '%' : '0%';
-});
-
-function calculateSectionScore(responses) {
-    if (responses.length === 0) return 0;
-
-    let approvedCount = 0;
-    responses.forEach(resp => {
-        // Check if response has approved status
-        if (resp.lead_comments && resp.lead_comments.length > 0) {
-            if (resp.lead_comments[0].status === 'approved') {
-                approvedCount++;
-            }
-        }
-    });
-
-    return Math.round((approvedCount / responses.length) * 100);
+function exportToPDF() {
+    // Implementation for PDF export
+    alert('PDF export functionality will be implemented');
 }
 
-// Initialize tooltips for heatmap cells
+function exportToExcel() {
+    // Implementation for Excel export
+    alert('Excel export functionality will be implemented');
+}
+
+function shareResults() {
+    // Implementation for sharing results
+    alert('Share functionality will be implemented');
+}
+
+// Initialize tooltips and animations
 document.addEventListener('DOMContentLoaded', function() {
-    // Add tooltips to heatmap cells
-    const heatmapCells = document.querySelectorAll('.heatmap-cell');
-    heatmapCells.forEach(cell => {
-        const dimensionTitle = cell.querySelector('.dimension-title').textContent;
-        const scoreDisplay = cell.querySelector('.score-display').textContent;
-        const questionsCount = cell.querySelector('.questions-count').textContent;
-        const level = cell.classList.toString().match(/level-(\d)/)?.[1] || '0';
-        
-        const levelNames = {
-            '1': 'Initial - Basic security measures with ad-hoc processes',
-            '2': 'Developing - Some processes defined but inconsistently applied',
-            '3': 'Defined - Well-defined processes documented and followed',
-            '4': 'Managed - Processes are measured and controlled',
-            '5': 'Optimized - Continuous improvement with optimized processes'
-        };
-        
-        const tooltipText = `${dimensionTitle}\nScore: ${scoreDisplay}\n${questionsCount}\nLevel: ${levelNames[level] || 'Not assessed'}`;
-        
-        cell.setAttribute('title', tooltipText);
-        cell.setAttribute('data-bs-toggle', 'tooltip');
-        cell.setAttribute('data-bs-placement', 'top');
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.percentage-fill');
+    progressBars.forEach(bar => {
+        const percentage = bar.dataset.percentage;
+        setTimeout(() => {
+            bar.style.width = percentage + '%';
+        }, 500);
     });
     
-    // Initialize Bootstrap tooltips
-    if (typeof bootstrap !== 'undefined') {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
-    
-    // Add click animation to maturity badge
-    const maturityBadge = document.querySelector('.maturity-badge-large');
-    if (maturityBadge) {
-        maturityBadge.addEventListener('click', function() {
-            this.style.transform = 'scale(1.1)';
+    // Animate maturity levels
+    const maturityLevels = document.querySelectorAll('.maturity-level');
+    maturityLevels.forEach((level, index) => {
+        setTimeout(() => {
+            level.style.transform = 'scale(1.1)';
             setTimeout(() => {
-                this.style.transform = '';
-            }, 200);
-        });
-    }
-});
-
-// Function to export heatmap data (if needed for reports)
-function exportHeatmapData() {
-    {% if maturity_score and dimension_scores %}
-    const heatmapData = {
-        product: '{{ product.name|escape }}',
-        overallMaturityScore: {{ maturity_score }},
-        dimensions: [
-            {% for dimension, score_data in dimension_scores.items() %}
-            {
-                name: '{{ dimension|escape }}',
-                score: {{ score_data.average_score }},
-                level: {{ score_data.average_score|round|int }},
-                questionCount: {{ score_data.question_count }},
-                totalScore: {{ score_data.total_score }}
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ]
-    };
+                level.style.transform = 'scale(1)';
+            }, 300);
+        }, index * 200);
+    });
     
-    // Download as JSON
-    const dataStr = JSON.stringify(heatmapData, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${heatmapData.product}_maturity_heatmap.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    {% endif %}
-}
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}

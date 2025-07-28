@@ -1,24 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Lead Dashboard - SecureSphere{% endblock %}
+{% block title %}Reviewer Dashboard - SecureSphere{% endblock %}
 
 {% block content %}
-<div class="container my-4 dashboard-lead">
 <div class="dashboard-header text-center mb-4">
     <h1 class="display-6 fw-bold mb-2">
         <i class="bi bi-person-badge me-3"></i>Reviewer Dashboard
     </h1>
-    <p class="lead mb-0">Review and manage questionnaire responses from clients</p>
+    <p class="lead mb-0">Review and manage security assessments from clients</p>
 </div>
 
 <!-- Dashboard Statistics -->
-<div class="dashboard-stats mb-4">
+<div class="dashboard-stats">
     <div class="card stat-card text-center">
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-8">
                     <h3 class="mb-0">{{ clients_data|length }}</h3>
-                    <p class="mb-0">Total Clients</p>
+                    <p class="mb-0">Active Clients</p>
                 </div>
                 <div class="col-4">
                     <i class="bi bi-people icon"></i>
@@ -36,7 +35,7 @@
                         {% set total_products = total_products + client_data.products|length %}
                     {% endfor %}
                     <h3 class="mb-0">{{ total_products }}</h3>
-                    <p class="mb-0">Total Products</p>
+                    <p class="mb-0">Products Under Review</p>
                 </div>
                 <div class="col-4">
                     <i class="bi bi-box-seam icon"></i>
@@ -49,24 +48,293 @@
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-8">
-                    {% set total_responses = 0 %}
+                    {% set pending_reviews = 0 %}
                     {% for client_id, client_data in clients_data.items() %}
                         {% for product_id, product_data in client_data.products.items() %}
-                            {% set total_responses = total_responses + product_data.responses|length %}
+                            {% set pending_reviews = pending_reviews + product_data.responses|selectattr('is_reviewed', 'equalto', false)|list|length %}
                         {% endfor %}
                     {% endfor %}
-                    <h3 class="mb-0">{{ total_responses }}</h3>
-                    <p class="mb-0">Total Responses</p>
+                    <h3 class="mb-0">{{ pending_reviews }}</h3>
+                    <p class="mb-0">Pending Reviews</p>
                 </div>
                 <div class="col-4">
-                    <i class="bi bi-chat-square-text icon"></i>
+                    <i class="bi bi-clock icon"></i>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Action Buttons -->
+<!-- Review Status Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-kanban me-2"></i>Review Status Overview
+                </h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshReviewStatus()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportReviewData()">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="review-status-board">
+                    <div class="status-column">
+                        <div class="status-header pending">
+                            <h6><i class="bi bi-clock me-2"></i>Pending Review</h6>
+                            <span class="badge bg-warning">{{ pending_reviews }}</span>
+                        </div>
+                        <div class="status-items" id="pendingItems">
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% set pending_responses = product_data.responses|selectattr('is_reviewed', 'equalto', false)|list %}
+                                    {% if pending_responses|length > 0 %}
+                                    <div class="review-item pending" data-client="{{ client_data.user.username }}" data-product="{{ product_data.product.name }}">
+                                        <div class="item-header">
+                                            <strong>{{ product_data.product.name }}</strong>
+                                            <span class="client-badge">{{ client_data.user.username }}</span>
+                                        </div>
+                                        <div class="item-meta">
+                                            <span class="response-count">{{ pending_responses|length }} responses</span>
+                                            <span class="time-ago">{{ pending_responses[0].updated_at.strftime('%m/%d') if pending_responses else '' }}</span>
+                                        </div>
+                                        <div class="item-actions">
+                                            <a href="{{ url_for('review_questionnaire', product_id=product_id) }}" 
+                                               class="btn btn-primary btn-sm">
+                                                <i class="bi bi-eye me-1"></i>Review
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="status-column">
+                        <div class="status-header in-review">
+                            <h6><i class="bi bi-pencil me-2"></i>In Review</h6>
+                            {% set in_review_count = 0 %}
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'under_review' %}
+                                        {% set in_review_count = in_review_count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            <span class="badge bg-info">{{ in_review_count }}</span>
+                        </div>
+                        <div class="status-items" id="reviewingItems">
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'under_review' %}
+                                    <div class="review-item in-review" data-client="{{ client_data.user.username }}" data-product="{{ product_data.product.name }}">
+                                        <div class="item-header">
+                                            <strong>{{ product_data.product.name }}</strong>
+                                            <span class="client-badge">{{ client_data.user.username }}</span>
+                                        </div>
+                                        <div class="item-meta">
+                                            <span class="response-count">{{ product_data.responses|length }} responses</span>
+                                            <span class="time-ago">{{ product_data.product.updated_at.strftime('%m/%d') }}</span>
+                                        </div>
+                                        <div class="item-actions">
+                                            <a href="{{ url_for('review_questionnaire', product_id=product_id) }}" 
+                                               class="btn btn-info btn-sm">
+                                                <i class="bi bi-pencil me-1"></i>Continue
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="status-column">
+                        <div class="status-header completed">
+                            <h6><i class="bi bi-check-circle me-2"></i>Completed</h6>
+                            {% set completed_count = 0 %}
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'completed' %}
+                                        {% set completed_count = completed_count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            <span class="badge bg-success">{{ completed_count }}</span>
+                        </div>
+                        <div class="status-items" id="completedItems">
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'completed' %}
+                                    <div class="review-item completed" data-client="{{ client_data.user.username }}" data-product="{{ product_data.product.name }}">
+                                        <div class="item-header">
+                                            <strong>{{ product_data.product.name }}</strong>
+                                            <span class="client-badge">{{ client_data.user.username }}</span>
+                                        </div>
+                                        <div class="item-meta">
+                                            <span class="maturity-score">Level {{ product_data.product.maturity_score or 'N/A' }}</span>
+                                            <span class="time-ago">{{ product_data.product.updated_at.strftime('%m/%d') }}</span>
+                                        </div>
+                                        <div class="item-actions">
+                                            <a href="{{ url_for('product_results', product_id=product_id) }}" 
+                                               class="btn btn-success btn-sm">
+                                                <i class="bi bi-bar-chart me-1"></i>Results
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="status-column">
+                        <div class="status-header needs-attention">
+                            <h6><i class="bi bi-exclamation-triangle me-2"></i>Needs Attention</h6>
+                            {% set needs_attention_count = 0 %}
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'needs_client_response' %}
+                                        {% set needs_attention_count = needs_attention_count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            <span class="badge bg-danger">{{ needs_attention_count }}</span>
+                        </div>
+                        <div class="status-items" id="attentionItems">
+                            {% for client_id, client_data in clients_data.items() %}
+                                {% for product_id, product_data in client_data.products.items() %}
+                                    {% if product_data.product.status == 'needs_client_response' %}
+                                    <div class="review-item needs-attention" data-client="{{ client_data.user.username }}" data-product="{{ product_data.product.name }}">
+                                        <div class="item-header">
+                                            <strong>{{ product_data.product.name }}</strong>
+                                            <span class="client-badge">{{ client_data.user.username }}</span>
+                                        </div>
+                                        <div class="item-meta">
+                                            <span class="response-count">Awaiting client</span>
+                                            <span class="time-ago">{{ product_data.product.updated_at.strftime('%m/%d') }}</span>
+                                        </div>
+                                        <div class="item-actions">
+                                            <a href="{{ url_for('lead_comments') }}" 
+                                               class="btn btn-warning btn-sm">
+                                                <i class="bi bi-chat me-1"></i>Follow Up
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Performance Heatmap -->
+{% set has_completed_products = false %}
+{% for client_id, client_data in clients_data.items() %}
+    {% for product_id, product_data in client_data.products.items() %}
+        {% if product_data.product.status == 'completed' and product_data.product.maturity_score %}
+            {% set has_completed_products = true %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+{% if has_completed_products %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>Client Maturity Heatmap
+                    </h5>
+                    <small class="text-muted">Overview of client security maturity across dimensions</small>
+                </div>
+                <div class="heatmap-legend">
+                    <span class="legend-item level-1">Level 1</span>
+                    <span class="legend-item level-2">Level 2</span>
+                    <span class="legend-item level-3">Level 3</span>
+                    <span class="legend-item level-4">Level 4</span>
+                    <span class="legend-item level-5">Level 5</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="client-heatmap-container">
+                    <div class="heatmap-grid">
+                        <!-- Heatmap Header -->
+                        <div class="heatmap-header">
+                            <div class="header-cell product-header">Client / Product</div>
+                            <div class="header-cell dimension-header">Build & Deployment</div>
+                            <div class="header-cell dimension-header">Culture & Organization</div>
+                            <div class="header-cell dimension-header">Implementation</div>
+                            <div class="header-cell dimension-header">Information Gathering</div>
+                            <div class="header-cell dimension-header">Test & Verification</div>
+                            <div class="header-cell dimension-header">Overall Score</div>
+                        </div>
+                        
+                        <!-- Heatmap Data Rows -->
+                        {% for client_id, client_data in clients_data.items() %}
+                            {% for product_id, product_data in client_data.products.items() %}
+                                {% if product_data.product.status == 'completed' and product_data.product.maturity_score %}
+                                <div class="heatmap-row" data-client-id="{{ client_id }}" data-product-id="{{ product_id }}">
+                                    <div class="product-cell">
+                                        <div class="product-name">{{ product_data.product.name }}</div>
+                                        <div class="product-meta">{{ client_data.user.username }} | {{ product_data.product.programming_language }}</div>
+                                    </div>
+                                    
+                                    {% set dimension_scores = product_data.product.dimension_scores or {} %}
+                                    <div class="maturity-cell level-{{ dimension_scores.get('Build and Deployment', 1) }}" 
+                                         data-score="{{ dimension_scores.get('Build and Deployment', 1) }}"
+                                         title="Build & Deployment: Level {{ dimension_scores.get('Build and Deployment', 1) }}">
+                                        {{ dimension_scores.get('Build and Deployment', 1) }}
+                                    </div>
+                                    <div class="maturity-cell level-{{ dimension_scores.get('Culture and Organization', 1) }}" 
+                                         data-score="{{ dimension_scores.get('Culture and Organization', 1) }}"
+                                         title="Culture & Organization: Level {{ dimension_scores.get('Culture and Organization', 1) }}">
+                                        {{ dimension_scores.get('Culture and Organization', 1) }}
+                                    </div>
+                                    <div class="maturity-cell level-{{ dimension_scores.get('Implementation', 1) }}" 
+                                         data-score="{{ dimension_scores.get('Implementation', 1) }}"
+                                         title="Implementation: Level {{ dimension_scores.get('Implementation', 1) }}">
+                                        {{ dimension_scores.get('Implementation', 1) }}
+                                    </div>
+                                    <div class="maturity-cell level-{{ dimension_scores.get('Information Gathering', 1) }}" 
+                                         data-score="{{ dimension_scores.get('Information Gathering', 1) }}"
+                                         title="Information Gathering: Level {{ dimension_scores.get('Information Gathering', 1) }}">
+                                        {{ dimension_scores.get('Information Gathering', 1) }}
+                                    </div>
+                                    <div class="maturity-cell level-{{ dimension_scores.get('Test and Verification', 1) }}" 
+                                         data-score="{{ dimension_scores.get('Test and Verification', 1) }}"
+                                         title="Test & Verification: Level {{ dimension_scores.get('Test and Verification', 1) }}">
+                                        {{ dimension_scores.get('Test and Verification', 1) }}
+                                    </div>
+                                    <div class="overall-score-cell level-{{ product_data.product.maturity_score }}" 
+                                         data-score="{{ product_data.product.maturity_score }}"
+                                         title="Overall Maturity Score: Level {{ product_data.product.maturity_score }}">
+                                        <strong>{{ product_data.product.maturity_score }}</strong>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card dashboard-card">
@@ -77,7 +345,10 @@
                 <a href="{{ url_for('lead_comments') }}" class="btn btn-outline-info btn-lg rounded-pill px-4 me-3">
                     <i class="bi bi-chat-left-text me-2"></i>Client Communications
                 </a>
-                <button class="btn btn-outline-primary btn-lg rounded-pill px-4" onclick="showHelpModal()">
+                <button class="btn btn-outline-primary btn-lg rounded-pill px-4 me-3" onclick="generateReviewReport()">
+                    <i class="bi bi-file-earmark-text me-2"></i>Generate Report
+                </button>
+                <button class="btn btn-outline-secondary btn-lg rounded-pill px-4" onclick="showHelpModal()">
                     <i class="bi bi-question-circle me-2"></i>Need Help?
                 </button>
             </div>
@@ -85,1155 +356,152 @@
     </div>
 </div>
 
-<!-- Filter and Search -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card dashboard-card">
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="bi bi-search"></i>
-                            </span>
-                            <input type="text" class="form-control" id="searchInput" placeholder="Search responses...">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="clientFilter">
-                            <option value="">All Clients</option>
-                            {% for client_id, client_data in clients_data.items() %}
-                            <option value="{{ client_data.user.username }}">{{ client_data.user.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select" id="statusFilter">
-                            <option value="">All Status</option>
-                            <option value="pending">Pending Review</option>
-                            <option value="reviewed">Reviewed</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-outline-primary w-100" onclick="resetFilters()">
-                            <i class="bi bi-arrow-clockwise"></i> Reset
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Client Replies Section -->
+<!-- Recent Activity -->
 {% if client_replies %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card dashboard-card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="bi bi-chat-left-text me-2"></i>Recent Client Responses
+                    <i class="bi bi-activity me-2"></i>Recent Client Activity
                 </h5>
-                <small class="text-muted">Click on any card to view details</small>
+                <small class="text-muted">Latest responses and communications</small>
             </div>
             <div class="card-body">
-                <div class="row">
-                    {% for reply in client_replies %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                                                 <div class="client-reply-card" onclick="openClientReplyModal({{ reply.id }}, {{ reply.client.username|tojson }}, {{ reply.product.name|tojson }}, {{ reply.comment|tojson }}, {{ reply.created_at.strftime('%m/%d/%Y %I:%M %p')|tojson }}, {{ (reply.parent_comment.comment if reply.parent_comment else '')|tojson }})">
-                            <div class="reply-header">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-person-circle text-primary me-2"></i>
-                                    <strong class="client-name">{{ reply.client.username }}</strong>
-                                    <span class="ms-auto reply-time">{{ reply.created_at.strftime('%m/%d') }}</span>
-                                </div>
-                                <div class="product-info">
-                                    <i class="bi bi-box-seam text-info me-1"></i>
-                                    <small class="text-muted">{{ reply.product.name }}</small>
-                                </div>
+                <div class="activity-timeline">
+                    {% for reply in client_replies[:10] %}
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-chat-left-text"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-header">
+                                <strong>{{ reply.client.username }}</strong>
+                                <span class="activity-action">responded to</span>
+                                <strong>{{ reply.product.name }}</strong>
+                                <span class="activity-time">{{ reply.created_at.strftime('%m/%d/%Y %I:%M %p') }}</span>
                             </div>
-                            <div class="reply-preview">
-                                <p class="mb-1">{{ reply.comment[:80] }}{% if reply.comment|length > 80 %}...{% endif %}</p>
+                            <div class="activity-body">
+                                {{ reply.comment[:100] }}{% if reply.comment|length > 100 %}...{% endif %}
                             </div>
-                            <div class="reply-actions">
-                                <span class="badge bg-success">
-                                    <i class="bi bi-reply me-1"></i>Client Reply
-                                </span>
+                            <div class="activity-actions">
+                                <a href="{{ url_for('review_questionnaire', product_id=reply.product.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye me-1"></i>Review
+                                </a>
+                                <a href="{{ url_for('lead_comments') }}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-chat me-1"></i>Respond
+                                </a>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+                
+                {% if client_replies|length > 10 %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('lead_comments') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-right me-1"></i>View All Activity
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Section Performance Overview -->
-{% if clients_data %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card dashboard-card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-bar-chart me-2"></i>Section Performance Overview
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for client_id, client_data in clients_data.items() %}
-                        {% for product_id, product_data in client_data.products.items() %}
-                            {% if product_data.section_dimensions %}
-                            <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="performance-card">
-                                    <h6 class="fw-bold mb-2">
-                                        <i class="bi bi-person-circle me-1"></i>{{ client_data.user.username }}
-                                        <small class="text-muted">- {{ product_data.product.name }}</small>
-                                    </h6>
-                                    {% for section, data in product_data.section_dimensions.items() %}
-                                    <div class="dimension-item mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <small class="fw-medium">{{ section }}</small>
-                                            <small class="text-muted">{{ data.percentage }}%</small>
-                                        </div>
-                                        <div class="progress" style="height: 4px;">
-                                            <div class="progress-bar bg-success" 
-                                                 style="width: {{ data.percentage }}%"></div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                    <div class="mt-3 d-flex gap-2">
-                                        <button class="btn btn-outline-primary btn-sm" onclick="showQuestionsModal({{ product_data.product.id }}, '{{ client_data.user.username }}', '{{ product_data.product.name }}')">
-                                            <i class="bi bi-list-ul me-1"></i>Questions
-                                        </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick="showReviewModal({{ product_data.product.id }}, '{{ client_data.user.username }}', '{{ product_data.product.name }}')">
-                                            <i class="bi bi-pencil-square me-1"></i>Review
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Section removed - Questions and Review functionality moved to modals -->
-
-<!-- Detail Modal -->
-<div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="detailModalLabel">Question Details</h5>
+                <h5 class="modal-title" id="helpModalLabel">
+                    <i class="bi bi-question-circle me-2"></i>Reviewer Guide
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Client:</strong>
-                        <p id="detailClient" class="mb-1"></p>
+                <div class="help-content">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="help-section">
+                                <h6><i class="bi bi-1-circle me-2"></i>Review Process</h6>
+                                <p>Review client responses, provide feedback, and approve or request revisions for each assessment.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="help-section">
+                                <h6><i class="bi bi-2-circle me-2"></i>Status Management</h6>
+                                <p>Track assessment progress through different stages: Pending, In Review, Completed, and Needs Attention.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="help-section">
+                                <h6><i class="bi bi-3-circle me-2"></i>Client Communication</h6>
+                                <p>Communicate with clients through the integrated messaging system to clarify responses and provide guidance.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="help-section">
+                                <h6><i class="bi bi-4-circle me-2"></i>Maturity Analysis</h6>
+                                <p>Use the heatmap visualization to quickly identify security maturity patterns across clients and dimensions.</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <strong>Product:</strong>
-                        <p id="detailProduct" class="mb-1"></p>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <strong>Section:</strong>
-                        <p id="detailSection" class="mb-1"></p>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <strong>Question:</strong>
-                    <p id="detailQuestion" class="mb-1"></p>
-                </div>
-                <div class="mb-3">
-                    <strong>Answer:</strong>
-                    <p id="detailAnswer" class="mb-1"></p>
-                </div>
-                <div class="mb-3">
-                    <strong>Client Comment:</strong>
-                    <p id="detailComment" class="mb-1"></p>
-                </div>
-                <div class="mb-3">
-                    <strong>Evidence File:</strong>
-                    <div id="detailEvidence"></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% else %}
-    <div class="row">
-        <div class="col-12">
-            <div class="card dashboard-card">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-inbox display-1 text-muted mb-3"></i>
-                    <h4 class="text-muted">No Responses Yet</h4>
-                    <p class="text-muted mb-4">Client questionnaire responses will appear here for review.</p>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Responses are automatically added when clients complete questionnaires.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-{% endif %}
-
-<!-- Review Modal -->
-<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white">
-                <h5 class="modal-title" id="reviewModalLabel">
-                    <i class="bi bi-pencil-square me-2"></i>Review Questionnaire Response
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="reviewForm" method="post">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card bg-light h-100">
-                                <div class="card-header">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-info-circle me-2"></i>Response Details
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="response-detail-item mb-3">
-                                        <label class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-folder me-2"></i>Section:
-                                        </label>
-                                        <div class="detail-content">
-                                            <span class="badge bg-primary" id="modalSection"></span>
-                                        </div>
-                                    </div>
-
-                                    <div class="response-detail-item mb-3">
-                                        <label class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-question-circle me-2"></i>Question:
-                                        </label>
-                                        <div class="detail-content question-display" id="modalQuestion">
-                                        </div>
-                                    </div>
-
-                                    <div class="response-detail-item mb-3">
-                                        <label class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-check-circle me-2"></i>Client Answer:
-                                        </label>
-                                        <div class="detail-content d-flex align-items-center">
-                                            <span class="badge bg-success me-2" id="modalAnswer"></span>
-                                            <span id="modalEvidence"></span>
-                                        </div>
-                                    </div>
-
-                                    <div class="response-detail-item mb-3" id="modalClientCommentContainer" style="display: none;">
-                                        <label class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-chat-dots me-2"></i>Client Comment:
-                                        </label>
-                                        <div class="detail-content client-comment-display p-3 border rounded bg-white text-start" id="modalClientComment">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="card bg-light h-100">
-                                <div class="card-header">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-chat-left-dots me-2"></i>Your Review
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-4">
-                                        <label for="lead_comment" class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-chat-text me-2"></i>Review Comments:
-                                        </label>
-                                        <textarea name="lead_comment" id="lead_comment" class="form-control"
-                                                  rows="4" placeholder="Add your review comments, feedback, or request additional information..."></textarea>
-                                        <div class="form-text">
-                                            Provide constructive feedback or request clarification if needed.
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <label class="form-label fw-semibold text-primary mb-3">
-                                            <i class="bi bi-clipboard-check me-2"></i>Review Status:
-                                        </label>
-                                        <div class="review-status-options d-flex gap-2 flex-wrap">
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="review_status"
-                                                       id="approved" value="approved" checked>
-                                                <label class="status-card-label" for="approved">
-                                                    <i class="bi bi-check-circle text-success"></i>
-                                                    <span>Approved</span>
-                                                </label>
-                                            </div>
-
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="review_status"
-                                                       id="needs_revision" value="needs_revision">
-                                                <label class="status-card-label" for="needs_revision">
-                                                    <i class="bi bi-exclamation-triangle text-warning"></i>
-                                                    <span>Needs Revision</span>
-                                                </label>
-                                            </div>
-
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="review_status"
-                                                       id="rejected" value="rejected">
-                                                <label class="status-card-label" for="rejected">
-                                                    <i class="bi bi-x-circle text-danger"></i>
-                                                    <span>Rejected</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-gradient-primary" onclick="submitReview()">
-                    <i class="bi bi-check-lg me-2"></i>Submit Review
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Questions Modal -->
-<div class="modal fade" id="questionsModal" tabindex="-1" aria-labelledby="questionsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white">
-                <h5 class="modal-title" id="questionsModalLabel">
-                    <i class="bi bi-list-ul me-2"></i>All Questions by Section
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="list-group" id="sectionTabs" role="tablist">
-                            <a class="list-group-item list-group-item-action active" id="build-deployment-tab" data-bs-toggle="list" href="#build-deployment" role="tab">
-                                <i class="bi bi-tools me-2"></i>Build & Deployment
-                            </a>
-                            <a class="list-group-item list-group-item-action" id="culture-organization-tab" data-bs-toggle="list" href="#culture-organization" role="tab">
-                                <i class="bi bi-people me-2"></i>Culture & Organization
-                            </a>
-                            <a class="list-group-item list-group-item-action" id="implementation-tab" data-bs-toggle="list" href="#implementation" role="tab">
-                                <i class="bi bi-code-slash me-2"></i>Implementation
-                            </a>
-                            <a class="list-group-item list-group-item-action" id="information-gathering-tab" data-bs-toggle="list" href="#information-gathering" role="tab">
-                                <i class="bi bi-search me-2"></i>Information Gathering
-                            </a>
-                            <a class="list-group-item list-group-item-action" id="test-verification-tab" data-bs-toggle="list" href="#test-verification" role="tab">
-                                <i class="bi bi-check-circle me-2"></i>Test & Verification
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-md-9">
-                        <div class="tab-content" id="sectionTabContent">
-                            {% set sections = {
-                                'Build and Deployment': 'build-deployment',
-                                'Culture and Organization': 'culture-organization', 
-                                'Implementation': 'implementation',
-                                'Information Gathering': 'information-gathering',
-                                'Test and Verification': 'test-verification'
-                            } %}
-                            
-                            {% for section_name, section_id in sections.items() %}
-                            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ section_id }}" role="tabpanel">
-                                <h6 class="mb-3">{{ section_name }}</h6>
-                                <div class="questions-list">
-                                    {% for client_id, client_data in clients_data.items() %}
-                                        {% for product_id, product_data in client_data.products.items() %}
-                                            {% for resp in product_data.responses %}
-                                                {% if resp.section == section_name %}
-                                                <div class="question-item mb-3 p-3 border rounded" data-client="{{ client_data.user.username }}" data-product="{{ product_data.product.name }}" data-product-id="{{ product_data.product.id }}">
-                                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                                        <div class="client-info">
-                                                            <strong class="text-primary">{{ client_data.user.username }}</strong>
-                                                            <small class="text-muted ms-2">{{ product_data.product.name }}</small>
-                                                        </div>
-                                                        <div class="status-badge">
-                                                            {% set lead_comment = resp.lead_comments|first %}
-                                                            {% if lead_comment %}
-                                                                {% if lead_comment.status == 'approved' %}
-                                                                    <span class="badge bg-success">Approved</span>
-                                                                {% elif lead_comment.status == 'needs_revision' %}
-                                                                    <span class="badge bg-warning">Needs Revision</span>
-                                                                {% elif lead_comment.status == 'rejected' %}
-                                                                    <span class="badge bg-danger">Rejected</span>
-                                                                {% else %}
-                                                                    <span class="badge bg-secondary">Pending</span>
-                                                                {% endif %}
-                                                            {% else %}
-                                                                <span class="badge bg-secondary">Pending</span>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="question-text mb-2">
-                                                        <strong>Q:</strong> {{ resp.question }}
-                                                    </div>
-                                                    <div class="answer-text mb-2">
-                                                        <strong>A:</strong> <span class="badge bg-info">{{ resp.answer }}</span>
-                                                        {% if resp.evidence_path %}
-                                                            <a href="/{{ resp.evidence_path }}" target="_blank" class="btn btn-outline-info btn-sm ms-2">
-                                                                <i class="bi bi-paperclip"></i>
-                                                            </a>
-                                                        {% endif %}
-                                                    </div>
-                                                    {% if resp.client_comment %}
-                                                    <div class="client-comment mb-2">
-                                                        <strong>Comment:</strong> {{ resp.client_comment }}
-                                                    </div>
-                                                    {% endif %}
-                                                    {% if lead_comment and lead_comment.comment %}
-                                                    <div class="lead-comment">
-                                                        <strong class="text-success">Reviewer Comment:</strong> {{ lead_comment.comment }}
-                                                    </div>
-                                                    {% endif %}
-                                                </div>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endfor %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-2"></i>Close
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Product Review Modal -->
-<div class="modal fade" id="productReviewModal" tabindex="-1" aria-labelledby="productReviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white">
-                <h5 class="modal-title" id="productReviewModalLabel">
-                    <i class="bi bi-pencil-square me-2"></i>Review Product Responses
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="productReviewModalBody">
-                <!-- Content will be populated dynamically -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-2"></i>Close
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Chat Review Modal -->
-<div class="modal fade" id="chatReviewModal" tabindex="-1" aria-labelledby="chatReviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-primary text-white">
-                <h5 class="modal-title" id="chatReviewModalLabel">
-                    <i class="bi bi-chat-dots me-2"></i>Review Question
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <!-- Left side: Question and Client Answer -->
-                    <div class="col-md-6">
-                        <div class="card bg-light h-100">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-question-circle me-2"></i>Question & Answer
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-primary">Section:</label>
-                                    <div class="detail-content">
-                                        <span class="badge bg-primary" id="chatSection"></span>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-primary">Question:</label>
-                                    <div class="detail-content" id="chatQuestion"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold text-primary">Client Answer:</label>
-                                    <div class="detail-content">
-                                        <span class="badge bg-success" id="chatAnswer"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Right side: Review Interface -->
-                    <div class="col-md-6">
-                        <div class="card bg-light h-100">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-chat-left-dots me-2"></i>Review & Comments
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <form id="chatReviewForm">
-                                    <div class="mb-3">
-                                        <label for="chatComment" class="form-label fw-semibold text-primary">
-                                            <i class="bi bi-chat-text me-2"></i>Comments:
-                                        </label>
-                                        <textarea name="chat_comment" id="chatComment" class="form-control" rows="4" 
-                                                  placeholder="Add your review comments..."></textarea>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label fw-semibold text-primary mb-3">
-                                            <i class="bi bi-clipboard-check me-2"></i>Review Status:
-                                        </label>
-                                        <div class="review-status-options d-flex gap-2 flex-wrap">
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="chat_review_status" 
-                                                       id="chatApproved" value="approved" checked>
-                                                <label class="status-card-label" for="chatApproved">
-                                                    <i class="bi bi-check-circle text-success"></i>
-                                                    <span>Approved</span>
-                                                </label>
-                                            </div>
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="chat_review_status" 
-                                                       id="chatNeedsRevision" value="needs_revision">
-                                                <label class="status-card-label" for="chatNeedsRevision">
-                                                    <i class="bi bi-exclamation-triangle text-warning"></i>
-                                                    <span>Needs Revision</span>
-                                                </label>
-                                            </div>
-                                            <div class="status-card">
-                                                <input class="form-check-input" type="radio" name="chat_review_status" 
-                                                       id="chatRejected" value="rejected">
-                                                <label class="status-card-label" for="chatRejected">
-                                                    <i class="bi bi-x-circle text-danger"></i>
-                                                    <span>Rejected</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-gradient-primary" onclick="submitChatReview()">
-                    <i class="bi bi-check-lg me-2"></i>Submit Review
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Client Reply Modal -->
-<div class="modal fade" id="clientReplyModal" tabindex="-1" aria-labelledby="clientReplyModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-gradient-success text-white">
-                <h5 class="modal-title" id="clientReplyModalLabel">
-                    <i class="bi bi-chat-left-text me-2"></i>Client Response Details
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card bg-light">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-info-circle me-2"></i>Response Information
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="response-detail-item mb-3">
-                                    <label class="form-label fw-semibold text-primary">
-                                        <i class="bi bi-person-circle me-2"></i>Client:
-                                    </label>
-                                    <div class="detail-content">
-                                        <span id="modalClientName"></span>
-                                    </div>
-                                </div>
-
-                                <div class="response-detail-item mb-3">
-                                    <label class="form-label fw-semibold text-primary">
-                                        <i class="bi bi-box-seam me-2"></i>Product:
-                                    </label>
-                                    <div class="detail-content">
-                                        <span id="modalProductName"></span>
-                                    </div>
-                                </div>
-
-                                <div class="response-detail-item mb-3">
-                                    <label class="form-label fw-semibold text-primary">
-                                        <i class="bi bi-clock me-2"></i>Response Time:
-                                    </label>
-                                    <div class="detail-content">
-                                        <span id="modalResponseTime"></span>
-                                    </div>
-                                </div>
-
-                                <div class="response-detail-item mb-3">
-                                    <label class="form-label fw-semibold text-primary">
-                                        <i class="bi bi-chat-square-quote me-2"></i>Original Review:
-                                    </label>
-                                    <div class="detail-content">
-                                        <div class="original-review-display p-3 border rounded bg-white" id="modalOriginalReview">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="response-detail-item mb-3">
-                                    <label class="form-label fw-semibold text-success">
-                                        <i class="bi bi-reply me-2"></i>Client Response:
-                                    </label>
-                                    <div class="detail-content">
-                                        <div class="client-response-display p-3 border rounded bg-success bg-opacity-10" id="modalClientResponse">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg me-2"></i>Close
-                </button>
-                <button type="button" class="btn btn-primary" onclick="markReplyAsRead()">
-                    <i class="bi bi-check2 me-2"></i>Mark as Read
-                </button>
+                <a href="{{ url_for('lead_comments') }}" class="btn btn-primary">Start Reviewing</a>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-let currentResponseId = null;
-
-function openReviewModal(responseId, section, question, answer, clientComment, evidencePath) {
-    currentResponseId = responseId;
-    
-    document.getElementById('modalSection').textContent = section;
-    document.getElementById('modalQuestion').textContent = question;
-    document.getElementById('modalAnswer').textContent = answer;
-    
-    // Handle client comment
-    if (clientComment && clientComment.trim() !== '') {
-        document.getElementById('modalClientComment').textContent = clientComment;
-        document.getElementById('modalClientCommentContainer').style.display = 'block';
-    } else {
-        document.getElementById('modalClientCommentContainer').style.display = 'none';
-    }
-    
-    // Handle evidence
-    if (evidencePath && evidencePath.trim() !== '') {
-        document.getElementById('modalEvidence').innerHTML = 
-            `<a href="/${evidencePath}" target="_blank" class="btn btn-link btn-sm p-0 text-decoration-none" title="View Evidence File">
-                <i class="bi bi-paperclip text-primary"></i>
-            </a>`;
-    } else {
-        document.getElementById('modalEvidence').innerHTML = '';
-    }
-    
-    // Clear form
-    document.getElementById('lead_comment').value = '';
-    document.getElementById('approved').checked = true;
-    
-    // Show modal
-    new bootstrap.Modal(document.getElementById('reviewModal')).show();
-}
-
-function submitReview() {
-    const formData = new FormData();
-    formData.append('lead_comment', document.getElementById('lead_comment').value);
-    
-    const reviewStatus = document.querySelector('input[name="review_status"]:checked').value;
-    formData.append('review_status', reviewStatus);
-    
-    fetch(`/review/${currentResponseId}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (response.ok) {
-            // Close modal and reload page
-            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
-            location.reload();
-        } else {
-            alert('Error submitting review. Please try again.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error submitting review. Please try again.');
-    });
-}
-
-// Detail Modal Function
-function openDetailModal(responseId, client, product, section, question, answer, comment, evidencePath) {
-    document.getElementById('detailClient').textContent = client;
-    document.getElementById('detailProduct').textContent = product;
-    document.getElementById('detailSection').textContent = section;
-    document.getElementById('detailQuestion').textContent = question;
-    document.getElementById('detailAnswer').textContent = answer;
-    document.getElementById('detailComment').textContent = comment || 'No comment provided';
-    
-    const evidenceDiv = document.getElementById('detailEvidence');
-    if (evidencePath) {
-        evidenceDiv.innerHTML = `<a href="/${evidencePath}" target="_blank" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-paperclip me-1"></i>View Evidence File
-        </a>`;
-    } else {
-        evidenceDiv.innerHTML = '<span class="text-muted">No evidence file uploaded</span>';
-    }
-    
-    new bootstrap.Modal(document.getElementById('detailModal')).show();
-}
-
-// Search and Filter Functions
-function filterResponses() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const clientFilter = document.getElementById('clientFilter').value;
-    const statusFilter = document.getElementById('statusFilter').value;
-
-    const questionRows = document.querySelectorAll('.question-row');
-
-    questionRows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const client = row.dataset.client;
-        const status = row.querySelector('.badge').textContent.toLowerCase();
-
-        let show = true;
-
-        if (searchTerm && !text.includes(searchTerm)) {
-            show = false;
-        }
-
-        if (clientFilter && client !== clientFilter) {
-            show = false;
-        }
-
-        if (statusFilter) {
-            if (statusFilter === 'pending' && !status.includes('pending')) {
-                show = false;
-            } else if (statusFilter === 'reviewed' && status.includes('pending')) {
-                show = false;
-            }
-        }
-
-        row.style.display = show ? '' : 'none';
-    });
-}
-
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('clientFilter').value = '';
-    document.getElementById('statusFilter').value = '';
-    filterResponses();
-}
-
-// Event listeners
-document.getElementById('searchInput').addEventListener('input', filterResponses);
-document.getElementById('clientFilter').addEventListener('change', filterResponses);
-document.getElementById('statusFilter').addEventListener('change', filterResponses);
-
-// Animation for stats cards
-document.addEventListener('DOMContentLoaded', function() {
-    const statsCards = document.querySelectorAll('.stat-card');
-    statsCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.transform = 'translateY(-5px)';
-        }, index * 200);
-    });
-});
-
 function showHelpModal() {
-    // Create a simple help modal using Bootstrap
-    const helpContent = `
-        <div class="modal fade" id="helpModal" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="bi bi-question-circle me-2"></i>Lead Dashboard Help
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6><i class="bi bi-clipboard-check me-2"></i>Reviewing Responses</h6>
-                                <p>Click "Review" to evaluate client questionnaire responses and provide feedback.</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6><i class="bi bi-chat-left-text me-2"></i>Communications</h6>
-                                <p>Use "Client Communications" to view and respond to client messages and feedback.</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6><i class="bi bi-search me-2"></i>Filtering</h6>
-                                <p>Use the search and filter options to quickly find specific client responses.</p>
-                            </div>
-                            <div class="col-md-6">
-                                <h6><i class="bi bi-shield-check me-2"></i>Review Status</h6>
-                                <p>Track the status of each response: Pending, Approved, Needs Revision, or Rejected.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if present
-    const existingModal = document.getElementById('helpModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', helpContent);
-    
-    // Show modal
-    new bootstrap.Modal(document.getElementById('helpModal')).show();
+    const helpModal = new bootstrap.Modal(document.getElementById('helpModal'));
+    helpModal.show();
 }
 
-// Client Reply Modal Functions
-let currentReplyId = null;
-
-function openClientReplyModal(replyId, clientName, productName, clientResponse, responseTime, originalReview) {
-    currentReplyId = replyId;
-    
-    document.getElementById('modalClientName').textContent = clientName;
-    document.getElementById('modalProductName').textContent = productName;
-    document.getElementById('modalResponseTime').textContent = responseTime;
-    document.getElementById('modalOriginalReview').textContent = originalReview || 'No original review found';
-    document.getElementById('modalClientResponse').textContent = clientResponse;
-    
-    new bootstrap.Modal(document.getElementById('clientReplyModal')).show();
+function refreshReviewStatus() {
+    location.reload();
 }
 
-function markReplyAsRead() {
-    if (currentReplyId) {
-        fetch(`/lead/reply/${currentReplyId}/read`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                bootstrap.Modal.getInstance(document.getElementById('clientReplyModal')).hide();
-                location.reload(); // Refresh to update the UI
-            } else {
-                alert('Error marking reply as read. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error marking reply as read. Please try again.');
-        });
-    }
+function exportReviewData() {
+    // Implementation for exporting review data
+    alert('Review data export functionality will be implemented');
 }
 
-// Questions and Review Modal Functions
-function showQuestionsModal(productId, clientName, productName) {
-    // Update modal title
-    document.getElementById('questionsModalLabel').innerHTML = `
-        <i class="bi bi-list-ul me-2"></i>Questions for ${clientName} - ${productName}
-    `;
-    
-    // Filter questions for this specific product
-    filterQuestionsByProduct(productId, clientName, productName);
-    
-    new bootstrap.Modal(document.getElementById('questionsModal')).show();
+function generateReviewReport() {
+    // Implementation for generating comprehensive review report
+    alert('Review report generation functionality will be implemented');
 }
 
-function filterQuestionsByProduct(productId, clientName, productName) {
-    // Hide all question items first
-    const allQuestionItems = document.querySelectorAll('.question-item');
-    allQuestionItems.forEach(item => {
-        item.style.display = 'none';
+// Drag and drop functionality for status board (future enhancement)
+function initializeDragDrop() {
+    // Drag and drop implementation for moving items between status columns
+}
+
+// Real-time updates (future enhancement)
+function initializeRealTimeUpdates() {
+    // WebSocket or polling implementation for real-time status updates
+}
+
+// Initialize tooltips and other UI components
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
-    // Show only questions for this specific product and client
-    const targetQuestionItems = document.querySelectorAll(`.question-item[data-client="${clientName}"][data-product="${productName}"]`);
-    targetQuestionItems.forEach(item => {
-        item.style.display = 'block';
-    });
+    // Initialize drag and drop
+    initializeDragDrop();
     
-    // If no questions found, show a message
-    if (targetQuestionItems.length === 0) {
-        document.querySelectorAll('.questions-list').forEach(list => {
-            list.innerHTML = '<p class="text-muted text-center">No questions found for this product.</p>';
-        });
-    }
-}
-
-function showReviewModal(productId, clientName, productName) {
-    // Update the existing review modal to show only questions for this specific product
-    document.getElementById('productReviewModalLabel').innerHTML = `
-        <i class="bi bi-pencil-square me-2"></i>Review Responses for ${clientName} - ${productName}
-    `;
-    
-    // Create content for product-specific review table
-    createProductReviewTable(productId, clientName, productName);
-    
-    new bootstrap.Modal(document.getElementById('productReviewModal')).show();
-}
-
-function createProductReviewTable(productId, clientName, productName) {
-    // This function will create a table with section-wise questions for review
-    const reviewTableContent = `
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Section</th>
-                        <th>Question</th>
-                        <th>Answer</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="productReviewTableBody">
-                    <!-- Content will be populated dynamically -->
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    // Find the modal body and update it
-    const modalBody = document.getElementById('productReviewModalBody');
-    if (modalBody) {
-        modalBody.innerHTML = reviewTableContent;
-        
-        // Populate the table with questions for this specific product
-        populateProductReviewTable(productId, clientName, productName);
-    }
-}
-
-function populateProductReviewTable(productId, clientName, productName) {
-    const tbody = document.getElementById('productReviewTableBody');
-    if (!tbody) return;
-    
-    // Get all question items for this specific product
-    const questionItems = document.querySelectorAll(`.question-item[data-client="${clientName}"][data-product="${productName}"]`);
-    
-    if (questionItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No questions found for this product.</td></tr>';
-        return;
-    }
-    
-    let tableRows = '';
-    questionItems.forEach((item, index) => {
-        // Extract data from the question item
-        const questionTextElement = item.querySelector('.question-text');
-        const questionText = questionTextElement ? questionTextElement.textContent.replace(/^Q:/, '').trim() : 'No question';
-        
-        const answerTextElement = item.querySelector('.answer-text');
-        const answerBadge = answerTextElement ? answerTextElement.querySelector('.badge.bg-info') : null;
-        const answer = answerBadge ? answerBadge.textContent.trim() : 'No answer';
-        
-        const statusBadge = item.querySelector('.status-badge .badge');
-        const status = statusBadge ? statusBadge.textContent.trim() : 'Pending';
-        
-        // Get section from the current section being viewed or extract from item
-        const sectionName = item.closest('.tab-pane')?.id?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown Section';
-        
-        // Try to extract response ID from onclick handlers in review buttons
-        const reviewButton = item.querySelector('button[onclick*="openReviewModal"]');
-        let responseId = `response_${productId}_${index}`;
-        if (reviewButton) {
-            const onclickStr = reviewButton.getAttribute('onclick');
-            const match = onclickStr.match(/openReviewModal\((\d+)/);
-            if (match) {
-                responseId = match[1];
-            }
-        }
-        
-        tableRows += `
-            <tr>
-                <td><span class="badge bg-light text-dark">${sectionName}</span></td>
-                <td>${questionText.length > 60 ? questionText.substring(0, 60) + '...' : questionText}</td>
-                <td><span class="badge bg-info">${answer}</span></td>
-                <td><span class="badge ${getStatusBadgeClass(status)}">${status}</span></td>
-                <td>
-                    <button class="btn btn-outline-primary btn-sm" onclick="openChatReviewModal('${responseId}', '${sectionName}', \`${questionText.replace(/`/g, '\\`')}\`, '${answer}', '${clientName}', '${productName}')">
-                        <i class="bi bi-chat-dots me-1"></i>Review
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-    
-    tbody.innerHTML = tableRows;
-}
-
-function getStatusBadgeClass(status) {
-    switch(status.toLowerCase()) {
-        case 'approved': return 'bg-success';
-        case 'needs revision': return 'bg-warning';
-        case 'rejected': return 'bg-danger';
-        default: return 'bg-secondary';
-    }
-}
-
-let currentChatResponseId = null;
-
-function openChatReviewModal(responseId, section, question, answer, clientName, productName) {
-    currentChatResponseId = responseId;
-    
-    // Update modal title
-    document.getElementById('chatReviewModalLabel').innerHTML = `
-        <i class="bi bi-chat-dots me-2"></i>Review Question for ${clientName} - ${productName}
-    `;
-    
-    // Populate the modal with question details
-    document.getElementById('chatSection').textContent = section;
-    document.getElementById('chatQuestion').textContent = question;
-    document.getElementById('chatAnswer').textContent = answer;
-    
-    // Clear the form
-    document.getElementById('chatComment').value = '';
-    document.getElementById('chatApproved').checked = true;
-    
-    // Show the modal
-    new bootstrap.Modal(document.getElementById('chatReviewModal')).show();
-}
-
-function submitChatReview() {
-    const comment = document.getElementById('chatComment').value.trim();
-    const status = document.querySelector('input[name="chat_review_status"]:checked').value;
-    
-    if (!comment && (status === 'needs_revision' || status === 'rejected')) {
-        alert('Please add comments when requesting revision or rejecting a response.');
-        document.getElementById('chatComment').focus();
-        return;
-    }
-    
-    // In a real implementation, this would send the review to the backend
-    // For now, we'll just show a success message and close the modal
-    const statusText = document.querySelector(`label[for="chat${status.charAt(0).toUpperCase() + status.slice(1).replace('_', '')}"] span`).textContent;
-    
-    if (confirm(`Submit review with status: ${statusText}?`)) {
-        // Simulate API call
-        console.log('Submitting review:', {
-            responseId: currentChatResponseId,
-            comment: comment,
-            status: status
-        });
-        
-        // Close modal and show success
-        bootstrap.Modal.getInstance(document.getElementById('chatReviewModal')).hide();
-        
-        // In a real app, you would reload the data or update the UI
-        alert('Review submitted successfully!');
-        
-        // Optionally refresh the parent modal or page
-        location.reload();
-    }
-}
-
-// Add CSS for status cards
-const statusCardCSS = `
-.status-card {
-    position: relative;
-}
-
-.status-card input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.status-card-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 12px 16px;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
-    min-width: 120px;
-    background: white;
-}
-
-.status-card-label:hover {
-    border-color: #3b82f6;
-    background-color: #f8fafc;
-}
-
-.status-card input[type="radio"]:checked + .status-card-label {
-    border-color: #3b82f6;
-    background-color: #eff6ff;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.status-card-label i {
-    font-size: 1.25rem;
-    margin-bottom: 4px;
-}
-
-.status-card-label span {
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-`;
-
-// Inject CSS into the page
-if (!document.getElementById('statusCardStyles')) {
-    const style = document.createElement('style');
-    style.id = 'statusCardStyles';
-    style.textContent = statusCardCSS;
-    document.head.appendChild(style);
-}
+    // Initialize real-time updates
+    initializeRealTimeUpdates();
+});
 </script>
-</div>
 {% endblock %}
